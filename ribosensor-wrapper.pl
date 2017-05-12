@@ -172,11 +172,80 @@ if(ribo_CheckIfFileExistsAndIsNonEmpty($ssi_file, undef, undef, 0) != 1) {
   }
 }
 
-# 
 my $seqstat_file = $out_root . ".seqstat";
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $seqstat_file);
 }
 ribo_ProcessSequenceFile($execs_H{"esl-seqstat"}, $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 
+# create new files for the 3 sequence length ranges:
+my @minlen_A = (0,   351, 601);
+my @maxlen_A = (350, 600, -1);
+my @subseq_file_A   = (); # array of fasta files that we fetch into
+my @subseq_sfetch_A = (); # array of sfetch input files that we created
+
+for(my $i = 0; $i < scalar(@minlen_A); $i++) { 
+  $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
+  $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
+  fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $minlen_A[$i], $maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
+  if(! opt_Get("--keep", \%opt_HH)) { 
+    push(@to_remove_A, $subseq_sfetch_A[$i]);
+    push(@to_remove_A, $subseq_file_A[$i]);
+  }
+}
+ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+
+
 exit;
+
+#####################################################################
+# SUBROUTINES 
+#####################################################################
+
+#################################################################
+# Subroutine : fetch_seqs_in_length_range()
+# Incept:      EPN, Fri May 12 11:13:46 2017
+#
+# Purpose:     Use esl-sfetch to fetch sequences in a given length
+#              range from <$seq_file> given the lengths in %{$seqlen_HR}.
+#
+# Arguments: 
+#   $sfetch_exec:  path to esl-sfetch executable
+#   $seq_file:     sequence file to process
+#   $minlen:       minimum length sequence to fetch
+#   $maxlen:       maximum length sequence to fetch (-1 for infinity)
+#   $seqlen_HR:    ref to hash of sequence lengths to fill here
+#   $sfetch_file:  name of esl-sfetch input file to create
+#   $subseq_file:  name of fasta file to create 
+#   $opt_HHR:      reference to 2D hash of cmdline options
+# 
+# Returns:     void
+#
+# Dies:        If the esl-sfetch command fails.
+#
+################################################################# 
+sub fetch_seqs_in_length_range { 
+  my $nargs_expected = 8;
+  my $sub_name = "fetch_seqs_in_length_range";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($sfetch_exec, $seq_file, $minlen, $maxlen, $seqlen_HR, $sfetch_file, $subseq_file, $opt_HHR) = (@_);
+
+  my $target;
+  open(SFETCH, ">", $sfetch_file) || die "ERROR unable to open $sfetch_file for writing";
+
+  foreach $target (keys %{$seqlen_HR}) { 
+    if(! exists $seqlen_HR->{$target}) { 
+      die "ERROR in $sub_name, no length data for $target"; 
+    }
+    if(($seqlen_HR->{$target} >= $minlen) && 
+       (($maxlen == -1) || ($seqlen_HR->{$target} <= $maxlen))) {  
+      print SFETCH $target . "\n";
+    }
+  }
+  close(SFETCH);
+
+  my $sfetch_cmd = $sfetch_exec . " -f $seq_file $sfetch_file > $subseq_file"; 
+  ribo_RunCommand($sfetch_cmd, opt_Get("-v", $opt_HHR));
+
+  return;
+}
