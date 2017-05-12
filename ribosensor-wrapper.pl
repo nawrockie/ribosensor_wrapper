@@ -53,8 +53,14 @@ opt_Add("-h",           "boolean", 0,                        0,    undef, undef,
 opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                    "force; if <output directory> exists, overwrite it",  \%opt_HH, \@opt_order_A);
 opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                     "be verbose; output commands to stdout as they're run", \%opt_HH, \@opt_order_A);
 opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                   "use <n> CPUs", \%opt_HH, \@opt_order_A);
-opt_Add("--keep",        "boolean", 0,                       1,    undef, undef,      "keep all intermediate files",                    "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
-#opt_Add("-i",           "string",  undef,                    1,    undef, undef,      "use model info file <s> instead of default",     "use model info file <s> instead of default", \%opt_HH, \@opt_order_A);
+opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                    "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
+$opt_group_desc_H{"2"} = "16S-sensor related options";
+opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S-sensor minimum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S-sensor maximum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxevalue",    "real", 1e-40,                    2,    undef, undef,      "set 16S-sensor maximum E-value to <x>",                       "set 16S-sensor maximum E-value to <x>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs <= 350 nt to <n>",     "set 16S-sensor minimum percent id for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs [351..600] nt to <n>", "set 16S-sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs > 600 nt to <n>",      "set 16S-sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
 
 # This section needs to be kept in sync (manually) with the opt_Add() section above
 my %GetOptions_H = ();
@@ -66,7 +72,13 @@ my $options_okay =
                 'f'            => \$GetOptions_H{"-f"},
                 'v'            => \$GetOptions_H{"-v"},
                 'n=s'          => \$GetOptions_H{"-n"},
-                'keep'         => \$GetOptions_H{"--keep"});
+                'keep'         => \$GetOptions_H{"--keep"}, 
+                'Sminlen=s'    => \$GetOptions_H{"--Sminlen"}, 
+                'Smaxlen=s'    => \$GetOptions_H{"--Smaxlen"}, 
+                'Smaxevalue=s' => \$GetOptions_H{"--Smaxevalue"}, 
+                'Sminid1=s'    => \$GetOptions_H{"--Sminid1"}, 
+                'Sminid2=s'    => \$GetOptions_H{"--Sminid2"}, 
+                'Sminid3=s'    => \$GetOptions_H{"--Sminid3"}); 
 
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
@@ -156,7 +168,10 @@ ribo_ValidateExecutableHash(\%execs_H);
 ###################################################################
 # Step 1: Split up input sequence file into 3 files based on length
 ###################################################################
-my $progress_w = 48; # the width of the left hand column in our progress output, hard-coded
+# we do this before running ribotyper, even though ribotyper is run
+# on the full file so that we'll exit if we have a problem in the
+# sequence file
+my $progress_w = 52; # the width of the left hand column in our progress output, hard-coded
 my $start_secs = ribo_OutputProgressPrior("Partitioning sequence file based on sequence lengths", $progress_w, undef, *STDOUT);
 my %seqidx_H = (); # key: sequence name, value: index of sequence in original input sequence file (1..$nseq)
 my %seqlen_H = (); # key: sequence name, value: length of sequence
@@ -179,24 +194,67 @@ if(! opt_Get("--keep", \%opt_HH)) {
 ribo_ProcessSequenceFile($execs_H{"esl-seqstat"}, $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 
 # create new files for the 3 sequence length ranges:
-my @minlen_A = (0,   351, 601);
-my @maxlen_A = (350, 600, -1);
+my $nparts = 3;                 # hard-coded, number of partitions
+my @part_minlen_A = (0,   351, 601); # hard-coded, minimum length for each partition
+my @part_maxlen_A = (350, 600, -1);  # hard-coded, maximum length for each partition, -1 == infinity
+my @part_desc_A   = ("0..350", "351..600", "601..inf");
+
 my @subseq_file_A   = (); # array of fasta files that we fetch into
 my @subseq_sfetch_A = (); # array of sfetch input files that we created
+my @subseq_nseq_A   = (); # array of number of sequences in each sequence
 
-for(my $i = 0; $i < scalar(@minlen_A); $i++) { 
+for(my $i = 0; $i < $nparts; $i++) { 
   $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
   $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
-  fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $minlen_A[$i], $maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
-  if(! opt_Get("--keep", \%opt_HH)) { 
+  $subseq_nseq_A[$i]   = fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $part_minlen_A[$i], $part_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
+  if((! opt_Get("--keep", \%opt_HH)) && ($subseq_nseq_A[$i] > 0)) { 
     push(@to_remove_A, $subseq_sfetch_A[$i]);
     push(@to_remove_A, $subseq_file_A[$i]);
   }
 }
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
+#############################################
+# Step 2: Run ribotyper on full sequence file
+#############################################
+# It's important we run ribotyper only once on full file so that E-values are accurate. 
+$start_secs = ribo_OutputProgressPrior("Running ribotyper on full sequence file", $progress_w, undef, *STDOUT);
+my $ribo_dir_out    = $dir_out . "/ribo-out";
+my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
+my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu $seq_file $ribo_dir_out > $ribo_stdoutfile";
+ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
+ribo_OutputProgressComplete($start_secs, "output saved to $ribo_stdoutfile", undef, *STDOUT);
 
-exit;
+################################################################
+# Step 3: Run 16S-sensor the length-partitioned 3 sequence files
+################################################################
+my @sensor_dir_out_A    = (); # [0..$i..$nparts-1], directory created for sensor run on partition $i
+my @sensor_stdoutfile_A = (); # [0..$i..$nparts-1], standard output file for sensor run on partition $i
+my @sensor_classfile_A  = (); # [0..$i..$nparts-1], classification output file name for sensor run on partition $i
+my @sensor_minid_A      = (); # [0..$i..$nparts-1], minimum identity percentage threshold to use for round $i
+my $sensor_cmd = undef;       # command used to run sensor
+
+my $sensor_minlen    = opt_Get("--Sminlen",    \%opt_HH);
+my $sensor_maxlen    = opt_Get("--Smaxlen",    \%opt_HH);
+my $sensor_maxevalue = opt_Get("--Smaxevalue", \%opt_HH);
+
+for(my $i = 0; $i < $nparts; $i++) { 
+  $sensor_minid_A[$i] = opt_Get("--Sminid" . ($i+1), \%opt_HH);
+  if($subseq_nseq_A[$i] > 0) { 
+    $start_secs = ribo_OutputProgressPrior("Running 16S-sensor on seqs of length $part_desc_A[$i]", $progress_w, undef, *STDOUT);
+    $sensor_dir_out_A[$i]    = $dir_out . "/sensor-" . ($i+1) . "-out";
+    $sensor_stdoutfile_A[$i] = $out_root . "sensor-" . ($i+1) . ".stdout";
+    $sensor_classfile_A[$i]  = "sensor-class." . ($i+1) . ".out";
+    $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
+    ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
+    ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+  }
+  else { 
+    $sensor_dir_out_A[$i]    = undef;
+    $sensor_stdoutfile_A[$i] = undef;
+    $sensor_classfile_A[$i]  = undef;
+  }
+}
 
 #####################################################################
 # SUBROUTINES 
@@ -219,7 +277,7 @@ exit;
 #   $subseq_file:  name of fasta file to create 
 #   $opt_HHR:      reference to 2D hash of cmdline options
 # 
-# Returns:     void
+# Returns:     Number of sequences fetched.
 #
 # Dies:        If the esl-sfetch command fails.
 #
@@ -230,7 +288,9 @@ sub fetch_seqs_in_length_range {
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
   my ($sfetch_exec, $seq_file, $minlen, $maxlen, $seqlen_HR, $sfetch_file, $subseq_file, $opt_HHR) = (@_);
 
-  my $target;
+  my $target;   # name of a target sequence
+  my $nseq = 0; # number of sequences fetched
+
   open(SFETCH, ">", $sfetch_file) || die "ERROR unable to open $sfetch_file for writing";
 
   foreach $target (keys %{$seqlen_HR}) { 
@@ -240,12 +300,15 @@ sub fetch_seqs_in_length_range {
     if(($seqlen_HR->{$target} >= $minlen) && 
        (($maxlen == -1) || ($seqlen_HR->{$target} <= $maxlen))) {  
       print SFETCH $target . "\n";
+      $nseq++;
     }
   }
   close(SFETCH);
 
-  my $sfetch_cmd = $sfetch_exec . " -f $seq_file $sfetch_file > $subseq_file"; 
-  ribo_RunCommand($sfetch_cmd, opt_Get("-v", $opt_HHR));
+  if($nseq > 0) { 
+    my $sfetch_cmd = $sfetch_exec . " -f $seq_file $sfetch_file > $subseq_file"; 
+    ribo_RunCommand($sfetch_cmd, opt_Get("-v", $opt_HHR));
+  }
 
-  return;
+  return $nseq;
 }
