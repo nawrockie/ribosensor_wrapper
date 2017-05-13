@@ -207,13 +207,13 @@ my @spart_desc_A   = ("0..350", "351..600", "601..inf");
 
 my $ncov_parts     = 2;               # hard-coded, number of coverage threshold partitions based on length
 my @cpart_minlen_A = (0,   351);      # hard-coded, minimum length for each coverage threshold partition
-my @cpart_minlen_A = (350, -1);       # hard-coded, maximum length for each coverage threshold partition, -1 == infinity
+my @cpart_maxlen_A = (350, -1);       # hard-coded, maximum length for each coverage threshold partition, -1 == infinity
 
 my @subseq_file_A   = (); # array of fasta files that we fetch into
 my @subseq_sfetch_A = (); # array of sfetch input files that we created
 my @subseq_nseq_A   = (); # array of number of sequences in each sequence
 
-for(my $i = 0; $i < $nparts; $i++) { 
+for(my $i = 0; $i < $nseq_parts; $i++) { 
   $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
   $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
   $subseq_nseq_A[$i]   = fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $spart_minlen_A[$i], $spart_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
@@ -238,11 +238,12 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 ###########################################################################
 # Step 3: Run 16S-sensor on the (up to 3) length-partitioned sequence files
 ###########################################################################
-my @sensor_dir_out_A    = (); # [0..$i..$nseq_parts-1], directory created for sensor run on partition $i
-my @sensor_stdoutfile_A = (); # [0..$i..$nseq_parts-1], standard output file for sensor run on partition $i
-my @sensor_classfile_A  = (); # [0..$i..$nseq_parts-1], classification output file name for sensor run on partition $i
-my @sensor_minid_A      = (); # [0..$i..$nseq_parts-1], minimum identity percentage threshold to use for round $i
-my $sensor_cmd = undef;       # command used to run sensor
+my @sensor_dir_out_A             = (); # [0..$i..$nseq_parts-1], directory created for sensor run on partition $i
+my @sensor_stdoutfile_A          = (); # [0..$i..$nseq_parts-1], standard output file for sensor run on partition $i
+my @sensor_classfile_argument_A  = (); # [0..$i..$nseq_parts-1], sensor script argument for classification output file for partition $i
+my @sensor_classfile_fullpath_A  = (); # [0..$i..$nseq_parts-1], full path to classification output file name for partition $i
+my @sensor_minid_A               = (); # [0..$i..$nseq_parts-1], minimum identity percentage threshold to use for round $i
+my $sensor_cmd = undef;                # command used to run sensor
 
 my $sensor_minlen    = opt_Get("--Sminlen",    \%opt_HH);
 my $sensor_maxlen    = opt_Get("--Smaxlen",    \%opt_HH);
@@ -252,17 +253,19 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
   $sensor_minid_A[$i] = opt_Get("--Sminid" . ($i+1), \%opt_HH);
   if($subseq_nseq_A[$i] > 0) { 
     $start_secs = ribo_OutputProgressPrior("Running 16S-sensor on seqs of length $spart_desc_A[$i]", $progress_w, undef, *STDOUT);
-    $sensor_dir_out_A[$i]    = $dir_out . "/sensor-" . ($i+1) . "-out";
-    $sensor_stdoutfile_A[$i] = $out_root . "sensor-" . ($i+1) . ".stdout";
-    $sensor_classfile_A[$i]  = "sensor-class." . ($i+1) . ".out";
-    $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
+    $sensor_dir_out_A[$i]             = $dir_out . "/sensor-" . ($i+1) . "-out";
+    $sensor_stdoutfile_A[$i]          = $out_root . "sensor-" . ($i+1) . ".stdout";
+    $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
+    $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
+    $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
     ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
     ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
   }
   else { 
-    $sensor_dir_out_A[$i]    = undef;
-    $sensor_stdoutfile_A[$i] = undef;
-    $sensor_classfile_A[$i]  = undef;
+    $sensor_dir_out_A[$i]            = undef;
+    $sensor_stdoutfile_A[$i]         = undef;
+    $sensor_classfile_fullpath_A[$i] = undef;
+    $sensor_classfile_argument_A[$i] = undef;
   }
 }
 
@@ -273,9 +276,8 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
 # as the ribotyper short output format, first unsorted, then sort it.
 my $unsrt_sensor_shortfile = $out_root . ".short.sensor.unsrt"; # unsorted 'short' format sensor output
 my $sensor_shortfile       = $out_root . ".short.sensor";       # sorted 'short' format sensor output
-parse_sensor_files($sensor_shortfile, \@sensor_classfile_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H \%opt_HH);
+parse_sensor_files($sensor_shortfile, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 
-# HERE HERE HERE
 # sort sensor shortfile
 # maybe write function that makes ribotyper short file just like the sensor short file first? 
 # write function that takes in ribotyper short file and sensor short file and combines them
@@ -379,12 +381,14 @@ sub parse_sensor_files {
 
   # get the coverage thresholds for each coverage threshold partition
   my $ncov_parts  = scalar(@{$minlen_AR});
-  my $cthresh_all = opt_Get("--Smincovall");
+  my $cthresh_all = opt_Get("--Smincovall", $opt_HHR);
   my @cthresh_part_A = ();
   my $cov_part = undef; # the coverage partition a sequence belongs to (index in $cthresh_part_)
   for($i = 0; $i < $ncov_parts; $i++) { 
     $cthresh_part_A[$i] = opt_Get("--Smincov" . ($i+1), $opt_HHR);
   }
+
+  open(OUT, ">", $short_file) || die "ERROR in $sub_name, unable to open $short_file for writing";
 
   foreach my $classfile (@{$classfile_AR}) { 
     if(defined $classfile) { 
@@ -395,16 +399,17 @@ sub parse_sensor_files {
         #T12A.3_40999	imperfect_match	minus	1	41
         #T13A.1_183523	imperfect_match	minus	1	41
         chomp $line;
-      
-        if(! exists $seqlen_HR->{$target}) { 
-          die "ERROR in $sub_name, no length data for $target"; 
-        }
 
         my @el_A = split(/\t/, $line);
         if(scalar(@el_A) != 5) { die "ERROR unable to parse sensor output file line: $line"; }
         ($seqid, $class, $strand, $nhits, $cov) = (@el_A);
         $passfail = "PASS";
         $failmsg = "";
+
+        # sanity check
+        if((! exists $seqidx_HR->{$seqid}) || (! exists $seqlen_HR->{$seqid})) { 
+          die "ERROR in $sub_name, found unexpected sequence $seqid\n";
+        }
 
         if($class eq "too long") { 
           $passfail = "FAIL";
@@ -437,21 +442,20 @@ sub parse_sensor_files {
           $failmsg  .= "sensor_HSPproblem;";
         }
         # now stop the else, because remainder don't depend on class
-        $cov_part = determine_coverage_threshold($seqlen_HR->{$seqid}, $minlen_AR, $maxlen_AR, $ncov_parts);
-        if($cov < $chtresh_all) { 
-          $passfail = "FAIL";
-          $failmsg  .= "sensor_nosimilarity;"; 
-          # TODO put this in table 1 in analysis doc, in table 3 but not table 1
-        }
-        elsif($cov < $cthresh_part_A[$cov_part]) { 
-          $passfail = "FAIL";
-          $failmsg  .= "sensor_lowsimilarity;";
-        }
-        if((! exists $seqidx_HR->{$seqid}) || (! exists $seqlen_HR->{$seqid})) { 
-          die "ERROR in $sub_name, found unexpected sequence $seqid\n";
+        if($cov ne "NA") { 
+          $cov_part = determine_coverage_threshold($seqlen_HR->{$seqid}, $minlen_AR, $maxlen_AR, $ncov_parts);
+          if($cov < $cthresh_all) { 
+            $passfail = "FAIL";
+            $failmsg  .= "sensor_nosimilarity;"; 
+            # TODO put this in table 1 in analysis doc, in table 3 but not table 1
+          }
+          elsif($cov < $cthresh_part_A[$cov_part]) { 
+            $passfail = "FAIL";
+            $failmsg  .= "sensor_lowsimilarity;";
+          }
         }
         if($failmsg eq "") { $failmsg = "-"; }
-        printf OUT ("%*d  %-*s  %4s  %s\n", $width_HR->{"index"}, $seqidx_HR->{$seqid}, $width_HR->{"target"}, $passfail, $failmsg);
+        printf OUT ("%*d  %-*s  %4s  %s\n", $width_HR->{"index"}, $seqidx_HR->{$seqid}, $width_HR->{"target"}, $seqid, $passfail, $failmsg);
       }
     }
   }
@@ -488,8 +492,8 @@ sub determine_coverage_threshold {
   my $i; # counter
 
   for($i = 0; $i < $n; $i++) {
-    if($length > $min_AR->[$i]) { die "ERROR in $sub_name, length $length out of bounds (too short)"; }
-    if(($max_AR->[$i] == -1) || ($length <= $max_AR->[$i])) { 
+    if($length < $min_AR->[$i]) { die "ERROR in $sub_name, length $length out of bounds (too short)"; }
+    if(($max_AR->[$i] == -1) || ($length >= $max_AR->[$i])) { 
       return $i;
     }
   }
