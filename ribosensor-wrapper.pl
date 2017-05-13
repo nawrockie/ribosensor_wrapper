@@ -171,6 +171,21 @@ $execs_H{"esl-sfetch"}            = $esl_exec_dir   . "esl-sfetch";
 $execs_H{"ribo"}                  = $ribo_exec_dir  . "ribotyper.pl";
 ribo_ValidateExecutableHash(\%execs_H);
 
+##############################
+# define and open output files
+##############################
+my $unsrt_sensor_gpipe_file = $out_root . ".gpipe.sensor.unsrt"; # unsorted 'short' format sensor output
+my $sensor_gpipe_gfile      = $out_root . ".gpipe.sensor";       # sorted 'short' format sensor output
+
+if(! opt_Get("--keep", \%opt_HH)) { 
+  push(@to_remove_A, $unsrt_sensor_gpipe_file);
+}
+
+my $unsrt_sensor_gpipe_FH = undef; # output file handle for unsorted sensor gpipe file
+my $sensor_gpipe_FH       = undef; # output file handle for sorted sensor gpipe file
+open($unsrt_sensor_gpipe_FH, ">", $unsrt_sensor_gpipe_file)  || die "ERROR unable to open $unsrt_sensor_gpipe_file for writing";
+open($sensor_gpipe_FH,       ">", $sensor_gpipe_file)        || die "ERROR unable to open $sensor_gpipe_file for writing";
+
 ###################################################################
 # Step 1: Split up input sequence file into 3 files based on length
 ###################################################################
@@ -274,11 +289,18 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
 ###########################################################################
 # parse 16S-sensor file to create intermediate file in the same format
 # as the ribotyper short output format, first unsorted, then sort it.
-my $unsrt_sensor_shortfile = $out_root . ".short.sensor.unsrt"; # unsorted 'short' format sensor output
-my $sensor_shortfile       = $out_root . ".short.sensor";       # sorted 'short' format sensor output
-parse_sensor_files($sensor_shortfile, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+parse_sensor_files($unsrt_sensor_gfile, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 
 # sort sensor shortfile
+output_gpipe_single_headers($unsrt_sensor_gpipe_FH, \%width_H);
+close($unsrt_sensor_gpipe_FH);
+close($sensor_gpipe_FH);
+
+$cmd = "sort -n $unsrt_sensor_gpipe_file >> $sensor_gfile";
+open($sensor_gpipe_FH, ">>", $sensor_gpipe_file) || die "ERROR, unable to open $sensor_gpipe_file for appending";
+output_gpipe_single_tail($sensor_gpipe_FH, 1); # 1: output is for sensor, not ribotyper
+close($sensor_gpipe_FH);
+
 # maybe write function that makes ribotyper short file just like the sensor short file first? 
 # write function that takes in ribotyper short file and sensor short file and combines them
 
@@ -347,7 +369,7 @@ sub fetch_seqs_in_length_range {
 #              output files, output a single summary line to a new file.
 #
 # Arguments: 
-#   $shortfile:    name of file to create 
+#   $out_FH:       filehandle to output to
 #   $classfile_AR: ref to array with names of sensor class files
 #   $minlen_AR:    ref to array of minimum lengths for coverage threshold partitions 
 #   $maxlen_AR:    ref to array of maximum lengths for coverage threshold partitions 
@@ -365,7 +387,7 @@ sub parse_sensor_files {
   my $nargs_expected = 8;
   my $sub_name = "parse_sensor_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($short_file, $classfile_AR, $minlen_AR, $maxlen_AR, $seqidx_HR, $seqlen_HR, $width_HR, $opt_HHR) = (@_);
+  my ($out_FH, $classfile_AR, $minlen_AR, $maxlen_AR, $seqidx_HR, $seqlen_HR, $width_HR, $opt_HHR) = (@_);
 
   my $nclassfiles = scalar(@{$classfile_AR});
   my $line   = undef; # a line of input
@@ -387,8 +409,6 @@ sub parse_sensor_files {
   for($i = 0; $i < $ncov_parts; $i++) { 
     $cthresh_part_A[$i] = opt_Get("--Smincov" . ($i+1), $opt_HHR);
   }
-
-  open(OUT, ">", $short_file) || die "ERROR in $sub_name, unable to open $short_file for writing";
 
   foreach my $classfile (@{$classfile_AR}) { 
     if(defined $classfile) { 
@@ -455,14 +475,12 @@ sub parse_sensor_files {
           }
         }
         if($failmsg eq "") { $failmsg = "-"; }
-        printf OUT ("%*d  %-*s  %4s  %s\n", $width_HR->{"index"}, $seqidx_HR->{$seqid}, $width_HR->{"target"}, $seqid, $passfail, $failmsg);
+        printf $FH ("%*d  %-*s  %5s  %8s  %4s  %s\n", $width_HR->{"index"}, $seqidx_HR->{$seqid}, $width_HR->{"target"}, $seqid, "?", $strand, $passfail, $failmsg);
       }
     }
   }
-  close(OUT);
   return;
 }
-
 
 #################################################################
 # Subroutine : determine_coverage_threshold()
@@ -502,3 +520,81 @@ sub determine_coverage_threshold {
   return 0; # never reached
 }
 
+#################################################################
+# Subroutine : output_gpipe_single_headers()
+# Incept:      EPN, Sat May 13 05:51:17 2017
+#
+# Purpose:     Output column headers to a gpipe format output
+#              file for either sensor or ribotyper.
+#              
+# Arguments: 
+#   $FH:        file handle to output to
+#   $width_HR:  ref to hash, keys include "model" and "target", 
+#               value is width (maximum length) of any target/model
+#
+# Returns:     Nothing.
+# 
+# Dies:        Never.
+#
+################################################################# 
+sub output_gpipe_single_headers { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_gpipe_single_headers";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $width_HR) = (@_);
+
+  my $index_dash_str  = "#" . get_monocharacter_string($width_HR->{"index"}-1, "-");
+  my $target_dash_str = get_monocharacter_string($width_HR->{"sequence"}, "-");
+  my $class_dash_str  = get_monocharacter_string(length("taxonomy"), "-");
+
+  printf $FH ("%-*s  %-*s  %-*s  %5s  %4s  %s\n", 
+              $width_HR->{"index"}, "#idx", 
+              $width_HR->{"target"}, "sequence", 
+              length("taxonomy"), "taxonomy",
+              "strnd", "p/f", "error(s)");
+
+  printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, "--------", "-----", "----", "--------");
+
+  return;
+}
+
+#################################################################
+# Subroutine : output_gpipe_single_tail()
+# Incept:      EPN, Sat May 13 06:17:57 2017
+#
+# Purpose:     Output explanation of columns to gpipe format 
+#              file for either sensor or ribotyper.
+#              
+# Arguments: 
+#   $out_FH:     file handle to output to
+#   $do_sensor:  '1' if output file is for sensor, '0' if for ribotyper
+#
+# Returns:     Nothing.
+# 
+# Dies:        Never.
+#
+################################################################# 
+sub output_gpipe_single_tail { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_gpipe_single_tail";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($out_FH, $do_sesnor) = (@_);
+
+  printf $FH ("#\n");
+  printf $FH ("# Explanation of columns:\n");
+  printf $FH ("#\n");
+  printf $FH ("# Column 1 [idx]:                 index of sequence in input sequence file\n");
+  printf $FH ("# Column 2 [target]:              name of target sequence\n");
+  printf $FH ("# Column 3 [taxonomy]:            inferred taxonomy of sequence%s\n", ($do_sensor) ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
+  printf $FH ("# Column 4 [strnd]:               strand ('plus' or 'minus') of best-scoring hit\n");
+#  printf $FH ("# Column 5 [p/f]:                 PASS or FAIL (see below for more on FAIL)\n");
+  printf $FH ("# Column 5 [p/f]:                 PASS or FAIL (type of error(s) listed in final column)\n");
+#  printf $FH ("# Column 6 [unexpected_features]: unexpected/unusual features of sequence (see below for more)\n");
+  printf $FH ("# Column 6 [unexpected_features]: unexpected/unusual features of sequence (see 00README.txt)\n");
+  
+  output_unexpected_features_explanation($FH, $opt_HHR);
+
+  return;
+}
