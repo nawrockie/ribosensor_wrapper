@@ -135,7 +135,7 @@ if(-d $dir_out) {
 elsif(-e $dir_out) { 
   $cmd = "rm $dir_out";
   if(opt_Get("-f", \%opt_HH)) { ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH)); }
-  else                        { die "ERROR a file named $dir_out already exists. Remove it, or use -f to overwrite it."; }
+#  else                        { die "ERROR a file named $dir_out already exists. Remove it, or use -f to overwrite it."; }
 }
 # if $dir_out does not exist, create it
 if(! -d $dir_out) { 
@@ -180,6 +180,7 @@ my $unsrt_sensor_gpipe_file = $out_root . ".sensor.unsrt.gpipe"; # unsorted 'gpi
 my $sensor_gpipe_file       = $out_root . ".sensor.gpipe";       # sorted 'gpipe' format sensor output
 my $ribo_gpipe_file         = $out_root . ".ribo.gpipe";         # 'gpipe' format ribotyper output
 my $combined_gpipe_file     = $out_root . ".gpipe";              # 'gpipe' format combined output
+my $passes_seq_file         = $out_root . ".pass.fa";            # all sequences that passed
 
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $unsrt_sensor_gpipe_file);
@@ -187,7 +188,7 @@ if(! opt_Get("--keep", \%opt_HH)) {
 
 my $unsrt_sensor_gpipe_FH = undef; # output file handle for unsorted sensor gpipe file
 my $sensor_gpipe_FH       = undef; # output file handle for sorted sensor gpipe file
-my $ribo_gpipe_FH         = undef; # output file handle for sorted sensor gpipe file
+my $ribo_gpipe_FH         = undef; # output file handle for sorted ribotyper gpipe file
 my $combined_gpipe_FH     = undef; # output file handle for the combined gpipe file
 open($unsrt_sensor_gpipe_FH, ">", $unsrt_sensor_gpipe_file)  || die "ERROR unable to open $unsrt_sensor_gpipe_file for writing";
 open($sensor_gpipe_FH,       ">", $sensor_gpipe_file)        || die "ERROR unable to open $sensor_gpipe_file for writing";
@@ -206,7 +207,7 @@ my %seqidx_H = (); # key: sequence name, value: index of sequence in original in
 my %seqlen_H = (); # key: sequence name, value: length of sequence
 my %width_H  = (); # hash, key is "model" or "target", value is maximum length of any model/target
 $width_H{"taxonomy"} = length("SSU.Euk-Microsporidia"); # longest possible classification
-$width_H{"strand"}   = length("mixed(S):minus(R)"); # longest possible strand string
+$width_H{"strand"}   = length("mixed(S):minus(R)");     # longest possible strand string
 
 # check for SSI index file for the sequence file,
 # if it doesn't exist, create it
@@ -258,7 +259,7 @@ my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
-#ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
+ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
 ###########################################################################
@@ -284,7 +285,7 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
     $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
     $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
-    #ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
+    ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
     ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
   }
   else { 
