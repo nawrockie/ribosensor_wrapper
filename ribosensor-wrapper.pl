@@ -258,7 +258,7 @@ my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
-ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
+#ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
 ###########################################################################
@@ -284,7 +284,7 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
     $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
     $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
-    ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
+    #ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
     ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
   }
   else { 
@@ -320,13 +320,21 @@ convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \%seqidx_H, \%
 output_gpipe_tail($ribo_gpipe_FH, "ribotyper", \%opt_HH); 
 close($ribo_gpipe_FH);
 
+my %outcome_ct_HH = ();
+initialize_outcome_counts(\%outcome_ct_HH);
+
 # combine sensor and ribotyper gpipe to get combined gpipe file
 output_gpipe_headers($combined_gpipe_FH, "combined", \%width_H);
-combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, \%width_H, \%opt_HH);
+combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, \%outcome_ct_HH, \%width_H, \%opt_HH);
 output_gpipe_tail($combined_gpipe_FH, "combined", \%opt_HH); # 1: output is for ribo, not ribotyper
 close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+
+output_outcome_statistics(*STDOUT, \%outcome_ct_HH);
+
+printf("#\n# Output saved to file $combined_gpipe_file\n");
+printf("#\n#[RIBO-SUCCESS]\n");
 
 #####################################################################
 # SUBROUTINES 
@@ -535,7 +543,7 @@ sub determine_coverage_threshold {
 
   for($i = 0; $i < $n; $i++) {
     if($length < $min_AR->[$i]) { die "ERROR in $sub_name, length $length out of bounds (too short)"; }
-    if(($max_AR->[$i] == -1) || ($length >= $max_AR->[$i])) { 
+    if(($max_AR->[$i] == -1) || ($length <= $max_AR->[$i])) { 
       return $i;
     }
   }
@@ -822,7 +830,7 @@ sub convert_ribo_short_to_gpipe_file {
 #   $width_HR:    ref to hash with max lengths of sequence index and target
 #   $opt_HHR:     ref to 2D hash of cmdline options
 #
-# Returns:     void
+# Returns:     "fails_to" string, only if $type eq "combined" else ""
 #
 # Dies:        never
 #
@@ -833,6 +841,8 @@ sub output_gpipe_line {
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
   my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $type, $width_HR, $opt_HHR) = (@_);
 
+  my $failsto = "";
+
   if(($type eq "sensor") || ($type eq "ribotyper")) { 
     printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %s\n", 
                 $width_HR->{"index"},    $idx, 
@@ -842,7 +852,7 @@ sub output_gpipe_line {
                 $passfail, $failmsg);
   }
   elsif($type eq "combined") { 
-    my $failsto = determine_fails_to_string($passfail, $failmsg, $opt_HHR);
+    $failsto = determine_fails_to_string($passfail, $failmsg, $opt_HHR);
     printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
                 $width_HR->{"index"},    $idx, 
                 $width_HR->{"target"},   $seqid, 
@@ -854,7 +864,7 @@ sub output_gpipe_line {
     die "ERROR in $sub_name, unexpected type: $type (should be 'sensor', 'ribotyper', or 'combined'";
   }
 
-  return;
+  return $failsto;
 }
 
 #################################################################
@@ -868,6 +878,10 @@ sub output_gpipe_line {
 #   $FH:                filehandle to output to
 #   $sensor_gpipe_file: name of sensor gpipe file to read
 #   $ribo_gpipe_file:   name of ribotyper gpipe file to read
+#   $outcome_ct_HHR:    ref to 2D hash of counts of outcomes,
+#                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
+#                       2D key: "total", "pass", "indexer", "submitter", "unmapped"
+#                       values: counts of sequences
 #   $width_HR:          ref to hash with max lengths of sequence index, target, and classifications
 #   $opt_HHR:           ref to 2D hash of cmdline options
 # 
@@ -877,10 +891,10 @@ sub output_gpipe_line {
 #
 ################################################################# 
 sub combine_gpipe_files { 
-  my $nargs_expected = 5;
+  my $nargs_expected = 6;
   my $sub_name = "combine_gpipe_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $sensor_gpipe_file, $ribo_gpipe_file, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $sensor_gpipe_file, $ribo_gpipe_file, $outcome_ct_HHR, $width_HR, $opt_HHR) = (@_);
 
   my @sel_A    = ();    # array of elements on a sensor line
   my @rel_A    = ();    # array of elements on a ribotyper line
@@ -899,6 +913,7 @@ sub combine_gpipe_files {
   my $have_sline = undef; # '1' if we have a valid sensor line
   my $have_rline = undef; # '1' if we have a valid ribotyper line
   my $out_lidx = 0;       # number of lines output
+  my $failsto_str = undef; # string of where sequence fails to ('indexer' or 'submitter') or 'pass' or 'unmapped'
 
   open(SIN, $sensor_gpipe_file) || die "ERROR unable to open $sensor_gpipe_file for reading in $sub_name"; 
   open(RIN, $ribo_gpipe_file)   || die "ERROR unable to open $ribo_gpipe_file for reading in $sub_name"; 
@@ -968,9 +983,14 @@ sub combine_gpipe_files {
       elsif($sfailmsg eq "-" && $rfailmsg ne "-") { $failmsg = $rfailmsg; }
       elsif($sfailmsg ne "-" && $rfailmsg ne "-") { $failmsg = $sfailmsg . $rfailmsg; }
 
-      output_gpipe_line($FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, "combined", $width_HR, $opt_HHR); # 1: combined file
+      $failsto_str = output_gpipe_line($FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, "combined", $width_HR, $opt_HHR); # 1: combined file
       $out_lidx++;
-
+      # update counts of outcomes 
+      $outcome_ct_HHR->{"*all*"}{"total"}++;
+      $outcome_ct_HHR->{"*all*"}{$failsto_str}++;
+      $outcome_ct_HHR->{$passfail}{"total"}++;
+      $outcome_ct_HHR->{$passfail}{$failsto_str}++;
+      
       # get new lines
       $sline = <SIN>;
       $rline = <RIN>;
@@ -1030,12 +1050,11 @@ sub determine_fails_to_string {
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
   my ($pftype, $failmsg, $opt_HHR) = (@_);
 
-
   if($pftype eq "RPSP") { 
     if($failmsg ne "-") { # failmsg should be empty
       die "ERROR in $sub_name, pftype: $pftype, but failmsg is not empty: $failmsg"; 
     }
-    return "PASS"; 
+    return "pass";
   }
   elsif($pftype eq "RFSF") { 
     if($failmsg eq "-") { # failmsg should not be empty
@@ -1066,13 +1085,14 @@ sub determine_fails_to_string {
           ($failmsg =~ m/ribotyper\_lowscore/)) {
       return "submitter";
     }
-    elsif(($failmsg =~ m/ribotyper\_lowcoverage/) || 
-          ($failmsg =~ m/ribotyper\_multiplehits/)) { 
+    elsif(($failmsg =~ m/ribotyper\_lowcoverage/)  || 
+          ($failmsg =~ m/ribotyper\_multiplehits/) || 
+          ($failmsg =~ m/ribotyper\_wrongtaxonomy/)) { 
       return "indexer";
     }
     else { 
-      return "?"; 
-      # die "ERROR in $sub_name, unknown situation $pftype $failmsg\n";
+      return "unmapped"; 
+      # die "ERROR in $sub_name, unmapped situation $pftype $failmsg\n";
     }
   }
   elsif($pftype eq "RFSP") { 
@@ -1093,7 +1113,8 @@ sub determine_fails_to_string {
       return "indexer"; 
     }
     else { 
-      return "indexer*";  # * = share with Alejandro and Eric
+#      return "indexer*";  # * = share with Alejandro and Eric
+      return "indexer";
     }
   }
 
@@ -1115,8 +1136,10 @@ sub determine_fails_to_string {
     if($failmsg eq "sensor_HSPproblem;") { # HSPproblem is only error
       return "indexer";
     }
-    if((($failmsg =~ m/sensor\_lowsimilarity/) || ($failmsg =~ m/sensor\_no/)) && # either 'lowsimilarity' or 'no' error
-       ($failmsg !~ m/sensor\_misassembly/)) { # misassembly error not present
+    if((($failmsg =~ m/sensor\_lowsimilarity/) || 
+        ($failmsg =~ m/sensor\_no/)            || 
+        ($failmsg =~ m/sensor\_imperfect\_match/)) # either 'lowsimilarity' or 'no' or 'imperfect_match' error
+       && ($failmsg !~ m/sensor\_misassembly/)) { # misassembly error not present
       if($is_cultured) { 
         return "submitter";
       }
@@ -1125,7 +1148,7 @@ sub determine_fails_to_string {
           return "indexer";
         }
         else { 
-          return "PASS";
+          return "pass";
         }
       }
     }
@@ -1133,4 +1156,119 @@ sub determine_fails_to_string {
 
   die "ERROR in $sub_name, unaccounted for case\npftype: $pftype\nfailmsg: $failmsg\n";
   return ""; # 
+}
+
+#################################################################
+# Subroutine: output_outcome_statistics()
+# Incept:     EPN, Mon May 15 11:51:12 2017
+#
+# Purpose:    Output the tabular outcome counts
+#
+# Arguments:
+#   $FH:             output file handle
+#   $outcome_ct_HHR: ref to the outcome count 2D hash
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub output_outcome_statistics { 
+  my $sub_name = "output_outcome_statistics";
+  my $nargs_expected = 2;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $outcome_ct_HHR) = (@_);
+
+  # determine max width of each column
+  my %width_H = ();  # key: name of column, value max width for column
+  my $type;          # a 1D key
+  my $category;      # a 2D key
+
+  $width_H{"type"}      = length("type");
+  $width_H{"total"}     = length("total");
+  $width_H{"pass"}      = length("pass");
+  $width_H{"indexer"}   = length("indexer");
+  $width_H{"submitter"} = length("submitter");
+  $width_H{"unmapped"}  = length("unmapped");
+
+  foreach $type (keys %{$outcome_ct_HHR}) { 
+    if(length($type) > $width_H{"type"}) { 
+      $width_H{"type"} = length($type);
+    }
+    foreach $category (keys %{$outcome_ct_HHR->{$type}}) { 
+      if(length($outcome_ct_HHR->{$type}{$category}) > $width_H{$category}) { 
+        $width_H{$category} = length($outcome_ct_HHR->{$type}{$category}); 
+      }
+    }
+  }
+
+  printf $FH ("#\n");
+  printf $FH ("# Outcome statistics:\n");
+  printf $FH ("#\n");
+  
+  # line 1
+  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %*s\n",
+                  $width_H{"type"},      "type",
+                  $width_H{"total"},     "total",
+                  $width_H{"pass"},      "pass", 
+                  $width_H{"indexer"},   "indexer", 
+                  $width_H{"submitter"}, "submitter",
+                  $width_H{"unmapped"},  "unmapped");
+  # line 2
+  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %*s\n", 
+                  $width_H{"type"},      ribo_GetMonoCharacterString($width_H{"type"}, "-"),
+                  $width_H{"total"},     ribo_GetMonoCharacterString($width_H{"total"}, "-"),
+                  $width_H{"pass"},      ribo_GetMonoCharacterString($width_H{"pass"}, "-"),
+                  $width_H{"indexer"},   ribo_GetMonoCharacterString($width_H{"indexer"}, "-"),
+                  $width_H{"submitter"}, ribo_GetMonoCharacterString($width_H{"submitter"}, "-"),
+                  $width_H{"unmapped"},  ribo_GetMonoCharacterString($width_H{"unmapped"}, "-"));
+  
+  foreach $type ("RPSP", "RPSF", "RFSP", "RFSF", "*all*") { 
+    if($type eq "*all*") { print $FH "#\n"; }
+    printf $FH ("  %-*s  %*d  %*d  %*d  %*d  %*d\n", 
+                $width_H{"type"},      $type,
+                $width_H{"total"},     $outcome_ct_HHR->{$type}{"total"}, 
+                $width_H{"pass"},      $outcome_ct_HHR->{$type}{"pass"}, 
+                $width_H{"indexer"},   $outcome_ct_HHR->{$type}{"indexer"}, 
+                $width_H{"submitter"}, $outcome_ct_HHR->{$type}{"submitter"}, 
+                $width_H{"unmapped"},  $outcome_ct_HHR->{$type}{"unmapped"}); 
+  }
+
+  return;
+}
+
+
+#################################################################
+# Subroutine: initialize_outcome_counts()
+# Incept:     EPN, Mon May 15 12:09:32 2017
+#
+# Purpose:    Initialize outcome counts.
+#
+# Arguments:
+#   $outcome_ct_HHR: ref to the outcome count 2D hash
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub initialize_outcome_counts { 
+  my $sub_name = "initialize_outcome_counts()";
+  my $nargs_expected = 1;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($outcome_ct_HHR) = (@_);
+  
+  my @type_A     = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
+  my @category_A = ("total", "pass", "indexer", "submitter", "unmapped");
+
+  foreach my $type (@type_A) { 
+    %{$outcome_ct_HHR->{$type}} = ();
+    foreach my $category (@category_A) { 
+      $outcome_ct_HHR->{$type}{$category} = 0;
+    }
+  }
+
+  return;
 }
