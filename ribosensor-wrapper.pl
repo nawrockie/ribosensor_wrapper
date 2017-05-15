@@ -49,10 +49,11 @@ my %opt_group_desc_H = ();
 # This section needs to be kept in sync (manually) with the &GetOptions call below
 $opt_group_desc_H{"1"} = "basic options";
 #     option            type       default               group   requires incompat    preamble-output                                   help-output    
-opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                            "display this help",                                  \%opt_HH, \@opt_order_A);
-opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                    "force; if <output directory> exists, overwrite it",  \%opt_HH, \@opt_order_A);
-opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                     "be verbose; output commands to stdout as they're run", \%opt_HH, \@opt_order_A);
-opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                   "use <n> CPUs", \%opt_HH, \@opt_order_A);
+opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                            "display this help",                                       \%opt_HH, \@opt_order_A);
+opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                    "force; if <output directory> exists, overwrite it",       \%opt_HH, \@opt_order_A);
+opt_Add("-c",           "boolean", 0,                        1,    undef, undef,      "assert sequences are from cultured organisms",   "assert sequences are from cultured organisms",            \%opt_HH, \@opt_order_A);
+opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                   "use <n> CPUs",                                            \%opt_HH, \@opt_order_A);
+opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                     "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
 opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                    "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"2"} = "16S-sensor related options";
 opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S-sensor minimum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
@@ -73,8 +74,9 @@ my $synopsis = "ribosensor-wrapper.pl :: analyze ribosomal RNA sequences with pr
 my $options_okay = 
     &GetOptions('h'            => \$GetOptions_H{"-h"}, 
                 'f'            => \$GetOptions_H{"-f"},
-                'v'            => \$GetOptions_H{"-v"},
+                'c'            => \$GetOptions_H{"-c"},
                 'n=s'          => \$GetOptions_H{"-n"},
+                'v'            => \$GetOptions_H{"-v"},
                 'keep'         => \$GetOptions_H{"--keep"}, 
                 'Sminlen=s'    => \$GetOptions_H{"--Sminlen"}, 
                 'Smaxlen=s'    => \$GetOptions_H{"--Smaxlen"}, 
@@ -303,25 +305,25 @@ parse_sensor_files($unsrt_sensor_gpipe_FH, \@sensor_classfile_fullpath_A, \@cpar
 close($unsrt_sensor_gpipe_FH);
 
 # sort sensor shortfile
-output_gpipe_single_headers($sensor_gpipe_FH, \%width_H);
+output_gpipe_headers($sensor_gpipe_FH, "sensor", \%width_H);
 close($sensor_gpipe_FH);
 
 $cmd = "sort -n $unsrt_sensor_gpipe_file >> $sensor_gpipe_file";
 ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH));
 open($sensor_gpipe_FH, ">>", $sensor_gpipe_file) || die "ERROR, unable to open $sensor_gpipe_file for appending";
-output_gpipe_single_tail($sensor_gpipe_FH, 1, \%opt_HH); # 1: output is for sensor, not ribotyper
+output_gpipe_tail($sensor_gpipe_FH, "sensor", \%opt_HH); 
 close($sensor_gpipe_FH);
 
 # convert ribotyper output to gpipe 
-output_gpipe_single_headers($ribo_gpipe_FH, \%width_H);
+output_gpipe_headers($ribo_gpipe_FH, "ribotyper", \%width_H);
 convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \%seqidx_H, \%width_H, \%opt_HH);
-output_gpipe_single_tail($ribo_gpipe_FH, 1, \%opt_HH); # 1: output is for ribo, not ribotyper
+output_gpipe_tail($ribo_gpipe_FH, "ribotyper", \%opt_HH); 
 close($ribo_gpipe_FH);
 
 # combine sensor and ribotyper gpipe to get combined gpipe file
-output_gpipe_single_headers($combined_gpipe_FH, \%width_H);
+output_gpipe_headers($combined_gpipe_FH, "combined", \%width_H);
 combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, \%width_H, \%opt_HH);
-output_gpipe_single_tail($combined_gpipe_FH, 1, \%opt_HH); # 1: output is for ribo, not ribotyper
+output_gpipe_tail($combined_gpipe_FH, "combined", \%opt_HH); # 1: output is for ribo, not ribotyper
 close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
@@ -497,7 +499,7 @@ sub parse_sensor_files {
           }
         }
         if($failmsg eq "") { $failmsg = "-"; }
-        output_gpipe_line($FH, $seqidx_HR->{$seqid}, $seqid, "?", $strand, $passfail, $failmsg, $width_HR);
+        output_gpipe_line($FH, $seqidx_HR->{$seqid}, $seqid, "?", $strand, $passfail, $failmsg, "sensor", $width_HR, $opt_HHR);
       }
     }
   }
@@ -543,7 +545,7 @@ sub determine_coverage_threshold {
 }
 
 #################################################################
-# Subroutine : output_gpipe_single_headers()
+# Subroutine : output_gpipe_headers()
 # Incept:      EPN, Sat May 13 05:51:17 2017
 #
 # Purpose:     Output column headers to a gpipe format output
@@ -551,6 +553,7 @@ sub determine_coverage_threshold {
 #              
 # Arguments: 
 #   $FH:        file handle to output to
+#   $type:      'sensor', 'ribotyper', or 'combined'
 #   $width_HR:  ref to hash, keys include "model" and "target", 
 #               value is width (maximum length) of any target/model
 #
@@ -559,32 +562,42 @@ sub determine_coverage_threshold {
 # Dies:        Never.
 #
 ################################################################# 
-sub output_gpipe_single_headers { 
-  my $nargs_expected = 2;
-  my $sub_name = "output_gpipe_single_headers";
+sub output_gpipe_headers { 
+  my $nargs_expected = 3;
+  my $sub_name = "output_gpipe_headers";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($FH, $width_HR) = (@_);
+  my ($FH, $type, $width_HR) = (@_);
 
   my $index_dash_str  = "#" . ribo_GetMonoCharacterString($width_HR->{"index"}-1, "-");
   my $target_dash_str = ribo_GetMonoCharacterString($width_HR->{"target"}, "-");
   my $tax_dash_str    = ribo_GetMonoCharacterString($width_HR->{"taxonomy"}, "-");
   my $strand_dash_str = ribo_GetMonoCharacterString($width_HR->{"strand"}, "-");
 
-  printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %s\n", 
-              $width_HR->{"index"},    "#idx", 
-              $width_HR->{"target"},   "sequence", 
-              $width_HR->{"taxonomy"}, "taxonomy",
-              $width_HR->{"strand"},   "strnd", 
-              "p/f", "error(s)");
-
-  printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "--------");
+  if(($type eq "sensor") || ($type eq "ribotyper")) { 
+    printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %s\n", 
+                $width_HR->{"index"},    "#idx", 
+                $width_HR->{"target"},   "sequence", 
+                $width_HR->{"taxonomy"}, "taxonomy",
+                $width_HR->{"strand"},   "strnd", 
+                "p/f", "error(s)");
+    printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "--------");
+  }
+  elsif($type eq "combined") { 
+    printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
+                $width_HR->{"index"},    "#idx", 
+                $width_HR->{"target"},   "sequence", 
+                $width_HR->{"taxonomy"}, "taxonomy",
+                $width_HR->{"strand"},   "strnd", 
+                "type", "failsto", "error(s)");
+    printf $FH ("%s  %s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "---------", "--------");
+  }
 
   return;
 }
 
 #################################################################
-# Subroutine : output_gpipe_single_tail()
+# Subroutine : output_gpipe_tail()
 # Incept:      EPN, Sat May 13 06:17:57 2017
 #
 # Purpose:     Output explanation of columns to gpipe format 
@@ -592,7 +605,7 @@ sub output_gpipe_single_headers {
 #              
 # Arguments: 
 #   $FH:         file handle to output to
-#   $do_sensor:  '1' if output file is for sensor, '0' if for ribotyper
+#   $type:       'sensor', 'ribotyper', or 'combined'
 #   $opt_HHR:    reference to 2D hash of cmdline options
 #
 # Returns:     Nothing.
@@ -600,22 +613,35 @@ sub output_gpipe_single_headers {
 # Dies:        Never.
 #
 ################################################################# 
-sub output_gpipe_single_tail { 
+sub output_gpipe_tail { 
   my $nargs_expected = 3;
-  my $sub_name = "output_gpipe_single_tail";
+  my $sub_name = "output_gpipe_tail";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($FH, $do_sensor, $opt_HHR) = (@_);
+  my ($FH, $type, $opt_HHR) = (@_);
 
   printf $FH ("#\n");
   printf $FH ("# Explanation of columns:\n");
   printf $FH ("#\n");
   printf $FH ("# Column 1 [idx]:      index of sequence in input sequence file\n");
   printf $FH ("# Column 2 [target]:   name of target sequence\n");
-  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence%s\n", ($do_sensor) ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
+  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence%s\n", ($type eq "sensor") ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
   printf $FH ("# Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit\n");
-  printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
-  printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
+  if(($type eq "sensor") || ($type eq "ribotyper")) { 
+    printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
+    printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
+  }
+  elsif($type eq "combined") { 
+    printf $FH ("# Column 5 [type]:     \"R<1>S<2>\" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor\n");
+    printf $FH ("# Column 6 [failsto]:  'PASS' if sequence passes\n");
+    printf $FH ("#                      'indexer'   to fail to indexer ('indexer*' if interesting situation)\n");
+    printf $FH ("#                      'submitter' to fail to submitter\n");
+    printf $FH ("#                      '?' if situation is not covered in the code\n");
+    printf $FH ("# Column 7 [error(s)]: reason(s) for failure (see 00README.txt)\n");
+  }
+  else { 
+    die "ERROR in $sub_name, unexpected type: $type (should be 'sensor', 'ribotyper', or 'combined'";
+  }
   
   output_errors_explanation($FH, $opt_HHR);
 
@@ -723,7 +749,7 @@ sub convert_ribo_short_to_gpipe_file {
         if($passfail ne "PASS") { 
           die "ERROR in $sub_name, sequence $seqid has no unexpected features, but does not PASS:\n$line\n";
         }
-        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, "-", $width_HR);
+        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, "-", "ribotyper", $width_HR, $opt_HHR);
       }
       else { # ufeature_str ne "-", look at each unexpected feature and convert to gpipe error string
         @ufeature_A = split(";", $ufeature_str);
@@ -771,7 +797,7 @@ sub convert_ribo_short_to_gpipe_file {
           }
           $failmsg = "-"; 
         }
-        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR);
+        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, "ribotyper", $width_HR, $opt_HHR);
       } # end of else entered if $ufeature_str ne "-"
     }
  }   
@@ -785,14 +811,16 @@ sub convert_ribo_short_to_gpipe_file {
 # Purpose:     Output a single line to a gpipe file file handle.
 #
 # Arguments: 
-#   $FH:        filehandle to output to
-#   $idx:       sequence index
-#   $seqid:     sequence identifier
-#   $class:     classification value
-#   $strand:    strand value
-#   $passfail:  "PASS" or "FAIL"
-#   $failmsg:   failure message
-#   $width_HR:  ref to hash with max lengths of sequence index and target
+#   $FH:          filehandle to output to
+#   $idx:         sequence index
+#   $seqid:       sequence identifier
+#   $class:       classification value
+#   $strand:      strand value
+#   $passfail:    "PASS" or "FAIL"
+#   $failmsg:     failure message
+#   $type:        "sensor", "ribotyper" or "combined"
+#   $width_HR:    ref to hash with max lengths of sequence index and target
+#   $opt_HHR:     ref to 2D hash of cmdline options
 #
 # Returns:     void
 #
@@ -800,17 +828,31 @@ sub convert_ribo_short_to_gpipe_file {
 #
 ################################################################# 
 sub output_gpipe_line { 
-  my $nargs_expected = 8;
+  my $nargs_expected = 10;
   my $sub_name = "output_gpipe_line";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR) = (@_);
+  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $type, $width_HR, $opt_HHR) = (@_);
 
-  printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %s\n", 
-              $width_HR->{"index"},    $idx, 
-              $width_HR->{"target"},   $seqid, 
-              $width_HR->{"taxonomy"}, $class, 
-              $width_HR->{"strand"},   $strand, 
-              $passfail, $failmsg);
+  if(($type eq "sensor") || ($type eq "ribotyper")) { 
+    printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %s\n", 
+                $width_HR->{"index"},    $idx, 
+                $width_HR->{"target"},   $seqid, 
+                $width_HR->{"taxonomy"}, $class, 
+                $width_HR->{"strand"},   $strand, 
+                $passfail, $failmsg);
+  }
+  elsif($type eq "combined") { 
+    my $failsto = determine_fails_to_string($passfail, $failmsg, $opt_HHR);
+    printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
+                $width_HR->{"index"},    $idx, 
+                $width_HR->{"target"},   $seqid, 
+                $width_HR->{"taxonomy"}, $class, 
+                $width_HR->{"strand"},   $strand, 
+                $passfail, $failsto, $failmsg);
+  }
+  else { 
+    die "ERROR in $sub_name, unexpected type: $type (should be 'sensor', 'ribotyper', or 'combined'";
+  }
 
   return;
 }
@@ -926,7 +968,7 @@ sub combine_gpipe_files {
       elsif($sfailmsg eq "-" && $rfailmsg ne "-") { $failmsg = $rfailmsg; }
       elsif($sfailmsg ne "-" && $rfailmsg ne "-") { $failmsg = $sfailmsg . $rfailmsg; }
 
-      output_gpipe_line($FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, $width_HR);
+      output_gpipe_line($FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, "combined", $width_HR, $opt_HHR); # 1: combined file
       $out_lidx++;
 
       # get new lines
@@ -952,4 +994,143 @@ sub combine_gpipe_files {
   }
 
   return;
+}
+
+  
+#################################################################
+# Subroutine : determine_fails_to_string()
+# Incept:      EPN, Mon May 15 10:42:52 2017
+#
+# Purpose:     Given a 4 character ribotyper/sensor pass fail type
+#              of either:
+#              RPSP: passes both ribotyper and sensor
+#              RPSF: passes ribotyper, fails sensor
+#              RFSP: fails ribotyper, passes sensor
+#              RFSF: fails both ribotyper and sensor
+# 
+#              And a string that includes all gpipe errors separated
+#              by semi-colons, determine if this sequence either:
+#              1) passes             (return "PASS")
+#              2) fails to indexer   (return "indexer")
+#              3) fails to submitter (return "submitter")
+#             
+# Arguments: 
+#   $pftype:      "RPSP", "RPSF", "RFSP", or "RFSF"
+#   $failmsg:     all gpipe error separated by ";"
+#   $opt_HHR:     ref to 2D hash of cmdline options
+#
+# Returns:     void
+#
+# Dies:        never
+#
+################################################################# 
+sub determine_fails_to_string { 
+  my $nargs_expected = 3;
+  my $sub_name = "determine_fails_to_string";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($pftype, $failmsg, $opt_HHR) = (@_);
+
+
+  if($pftype eq "RPSP") { 
+    if($failmsg ne "-") { # failmsg should be empty
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg is not empty: $failmsg"; 
+    }
+    return "PASS"; 
+  }
+  elsif($pftype eq "RFSF") { 
+    if($failmsg eq "-") { # failmsg should not be empty
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
+    }
+    if($failmsg !~ m/sensor/) { # failmsg should contain at least one sensor error
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a sensor error: $failmsg"; 
+    }
+    if($failmsg !~ m/ribotyper/) { # failmsg should contain at least one ribotyper error
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
+    }
+
+    # can we determine submitter/indexer based on sensor errors? 
+    if(($failmsg =~ m/sensor\_misassembly/)   || 
+       ($failmsg =~ m/sensor\_lowsimilarity/) || 
+       ($failmsg =~ m/sensor\_no/)) { 
+      return "submitter"; 
+    }
+    elsif($failmsg =~ m/sensor\_HSPproblem/) { 
+      return "indexer"; 
+    }
+    # we can't determine submitter/indexer based on sensor errors, 
+    # can we determine submitter/indexer based on ribotyper errors? 
+    elsif(($failmsg =~ m/ribotyper\_nohits/) || 
+          ($failmsg =~ m/ribotyper\_bothstrands/) ||
+          ($failmsg =~ m/ribotyper\_duplicateregion/) ||
+          ($failmsg =~ m/ribotyper\_inconsistenthits/) ||
+          ($failmsg =~ m/ribotyper\_lowscore/)) {
+      return "submitter";
+    }
+    elsif(($failmsg =~ m/ribotyper\_lowcoverage/) || 
+          ($failmsg =~ m/ribotyper\_multiplehits/)) { 
+      return "indexer";
+    }
+    else { 
+      return "?"; 
+      # die "ERROR in $sub_name, unknown situation $pftype $failmsg\n";
+    }
+  }
+  elsif($pftype eq "RFSP") { 
+    if($failmsg eq "-") { # failmsg should not be empty
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
+    }
+    if($failmsg =~ m/sensor/) { # failmsg should contain at least one sensor error
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg contains a sensor error: $failmsg"; 
+    }
+    if($failmsg !~ m/ribotyper/) { # failmsg should contain at least one ribotyper error
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
+    }
+
+    if($failmsg =~ m/ribotyper\_multiplefamilies/) { 
+      return "submitter"; 
+    }
+    elsif($failmsg =~ m/ribotyper\_wrongtaxonomy/) { 
+      return "indexer"; 
+    }
+    else { 
+      return "indexer*";  # * = share with Alejandro and Eric
+    }
+  }
+
+  elsif($pftype eq "RPSF") {  # most complicated case
+    if($failmsg eq "-") { # failmsg should not be empty
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
+    }
+    if($failmsg !~ m/sensor/) { # failmsg should contain at least one sensor errors
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg contains a sensor error: $failmsg"; 
+    }
+    if($failmsg =~ m/ribotyper/) { # failmsg should not contain any ribotyper errors
+      die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
+    }
+
+    my $is_cultured = opt_Get("-c", $opt_HHR);
+    if($failmsg =~ m/sensor\_misassembly/) { 
+      return "submitter";
+    }
+    if($failmsg eq "sensor_HSPproblem;") { # HSPproblem is only error
+      return "indexer";
+    }
+    if((($failmsg =~ m/sensor\_lowsimilarity/) || ($failmsg =~ m/sensor\_no/)) && # either 'lowsimilarity' or 'no' error
+       ($failmsg !~ m/sensor\_misassembly/)) { # misassembly error not present
+      if($is_cultured) { 
+        return "submitter";
+      }
+      else { 
+        if($failmsg =~ m/sensor\_HSPproblem/) { 
+          return "indexer";
+        }
+        else { 
+          return "PASS";
+        }
+      }
+    }
+  }
+
+  die "ERROR in $sub_name, unaccounted for case\npftype: $pftype\nfailmsg: $failmsg\n";
+  return ""; # 
 }
