@@ -174,8 +174,9 @@ ribo_ValidateExecutableHash(\%execs_H);
 ##############################
 # define and open output files
 ##############################
-my $unsrt_sensor_gpipe_file = $out_root . ".gpipe.sensor.unsrt"; # unsorted 'short' format sensor output
-my $sensor_gpipe_gfile      = $out_root . ".gpipe.sensor";       # sorted 'short' format sensor output
+my $unsrt_sensor_gpipe_file = $out_root . ".sensor.unsrt.gpipe"; # unsorted 'gpipe' format sensor output
+my $sensor_gpipe_file       = $out_root . ".sensor.gpipe";       # sorted 'gpipe' format sensor output
+my $ribo_gpipe_file         = $out_root . ".ribo.gpipe";         # 'gpipe' format ribotyper output
 
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $unsrt_sensor_gpipe_file);
@@ -183,8 +184,10 @@ if(! opt_Get("--keep", \%opt_HH)) {
 
 my $unsrt_sensor_gpipe_FH = undef; # output file handle for unsorted sensor gpipe file
 my $sensor_gpipe_FH       = undef; # output file handle for sorted sensor gpipe file
+my $ribo_gpipe_FH         = undef; # output file handle for sorted sensor gpipe file
 open($unsrt_sensor_gpipe_FH, ">", $unsrt_sensor_gpipe_file)  || die "ERROR unable to open $unsrt_sensor_gpipe_file for writing";
 open($sensor_gpipe_FH,       ">", $sensor_gpipe_file)        || die "ERROR unable to open $sensor_gpipe_file for writing";
+open($ribo_gpipe_FH,         ">", $ribo_gpipe_file)          || die "ERROR unable to open $ribo_gpipe_file for writing";
 
 ###################################################################
 # Step 1: Split up input sequence file into 3 files based on length
@@ -247,6 +250,7 @@ $start_secs = ribo_OutputProgressPrior("Running ribotyper on full sequence file"
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
 ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
@@ -287,21 +291,28 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
 ###########################################################################
 # Step 4: Parse 16S-sensor results and create intermediate file 
 ###########################################################################
-# parse 16S-sensor file to create intermediate file in the same format
-# as the ribotyper short output format, first unsorted, then sort it.
-parse_sensor_files($unsrt_sensor_gfile, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+$start_secs = ribo_OutputProgressPrior("Parsing and combining 16S-sensor and ribotyper output", $progress_w, undef, *STDOUT);
+# parse 16S-sensor file to create gpipe format file
+# first unsorted, then sort it.
+parse_sensor_files($unsrt_sensor_gpipe_FH, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 
 # sort sensor shortfile
 output_gpipe_single_headers($unsrt_sensor_gpipe_FH, \%width_H);
 close($unsrt_sensor_gpipe_FH);
 close($sensor_gpipe_FH);
 
-$cmd = "sort -n $unsrt_sensor_gpipe_file >> $sensor_gfile";
+$cmd = "sort -n $unsrt_sensor_gpipe_file >> $sensor_gpipe_file";
 open($sensor_gpipe_FH, ">>", $sensor_gpipe_file) || die "ERROR, unable to open $sensor_gpipe_file for appending";
-output_gpipe_single_tail($sensor_gpipe_FH, 1); # 1: output is for sensor, not ribotyper
+output_gpipe_single_tail($sensor_gpipe_FH, 1, \%opt_HH); # 1: output is for sensor, not ribotyper
 close($sensor_gpipe_FH);
 
-# maybe write function that makes ribotyper short file just like the sensor short file first? 
+# convert ribotyper output to gpipe 
+output_gpipe_single_headers($ribo_gpipe_FH, \%width_H);
+convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \%seqidx_H, \%width_H, \%opt_HH);
+output_gpipe_single_tail($ribo_gpipe_FH, 1, \%opt_HH); # 1: output is for ribo, not ribotyper
+close($ribo_gpipe_FH);
+
+ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 # write function that takes in ribotyper short file and sensor short file and combines them
 
 #####################################################################
@@ -369,7 +380,7 @@ sub fetch_seqs_in_length_range {
 #              output files, output a single summary line to a new file.
 #
 # Arguments: 
-#   $out_FH:       filehandle to output to
+#   $FH:           filehandle to output to
 #   $classfile_AR: ref to array with names of sensor class files
 #   $minlen_AR:    ref to array of minimum lengths for coverage threshold partitions 
 #   $maxlen_AR:    ref to array of maximum lengths for coverage threshold partitions 
@@ -387,7 +398,7 @@ sub parse_sensor_files {
   my $nargs_expected = 8;
   my $sub_name = "parse_sensor_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($out_FH, $classfile_AR, $minlen_AR, $maxlen_AR, $seqidx_HR, $seqlen_HR, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $classfile_AR, $minlen_AR, $maxlen_AR, $seqidx_HR, $seqlen_HR, $width_HR, $opt_HHR) = (@_);
 
   my $nclassfiles = scalar(@{$classfile_AR});
   my $line   = undef; # a line of input
@@ -475,7 +486,7 @@ sub parse_sensor_files {
           }
         }
         if($failmsg eq "") { $failmsg = "-"; }
-        printf $FH ("%*d  %-*s  %5s  %8s  %4s  %s\n", $width_HR->{"index"}, $seqidx_HR->{$seqid}, $width_HR->{"target"}, $seqid, "?", $strand, $passfail, $failmsg);
+        output_gpipe_line($FH, $seqidx_HR->{$seqid}, $seqid, "?", $strand, $passfail, $failmsg, $width_HR);
       }
     }
   }
@@ -544,9 +555,9 @@ sub output_gpipe_single_headers {
 
   my ($FH, $width_HR) = (@_);
 
-  my $index_dash_str  = "#" . get_monocharacter_string($width_HR->{"index"}-1, "-");
-  my $target_dash_str = get_monocharacter_string($width_HR->{"sequence"}, "-");
-  my $class_dash_str  = get_monocharacter_string(length("taxonomy"), "-");
+  my $index_dash_str  = "#" . ribo_GetMonoCharacterString($width_HR->{"index"}-1, "-");
+  my $target_dash_str = ribo_GetMonoCharacterString($width_HR->{"target"}, "-");
+  my $class_dash_str  = ribo_GetMonoCharacterString(length("taxonomy"), "-");
 
   printf $FH ("%-*s  %-*s  %-*s  %5s  %4s  %s\n", 
               $width_HR->{"index"}, "#idx", 
@@ -567,8 +578,9 @@ sub output_gpipe_single_headers {
 #              file for either sensor or ribotyper.
 #              
 # Arguments: 
-#   $out_FH:     file handle to output to
+#   $FH:         file handle to output to
 #   $do_sensor:  '1' if output file is for sensor, '0' if for ribotyper
+#   $opt_HHR:    reference to 2D hash of cmdline options
 #
 # Returns:     Nothing.
 # 
@@ -576,25 +588,204 @@ sub output_gpipe_single_headers {
 #
 ################################################################# 
 sub output_gpipe_single_tail { 
-  my $nargs_expected = 2;
+  my $nargs_expected = 3;
   my $sub_name = "output_gpipe_single_tail";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($out_FH, $do_sesnor) = (@_);
+  my ($FH, $do_sensor, $opt_HHR) = (@_);
 
   printf $FH ("#\n");
   printf $FH ("# Explanation of columns:\n");
   printf $FH ("#\n");
-  printf $FH ("# Column 1 [idx]:                 index of sequence in input sequence file\n");
-  printf $FH ("# Column 2 [target]:              name of target sequence\n");
-  printf $FH ("# Column 3 [taxonomy]:            inferred taxonomy of sequence%s\n", ($do_sensor) ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
-  printf $FH ("# Column 4 [strnd]:               strand ('plus' or 'minus') of best-scoring hit\n");
-#  printf $FH ("# Column 5 [p/f]:                 PASS or FAIL (see below for more on FAIL)\n");
-  printf $FH ("# Column 5 [p/f]:                 PASS or FAIL (type of error(s) listed in final column)\n");
-#  printf $FH ("# Column 6 [unexpected_features]: unexpected/unusual features of sequence (see below for more)\n");
-  printf $FH ("# Column 6 [unexpected_features]: unexpected/unusual features of sequence (see 00README.txt)\n");
+  printf $FH ("# Column 1 [idx]:      index of sequence in input sequence file\n");
+  printf $FH ("# Column 2 [target]:   name of target sequence\n");
+  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence%s\n", ($do_sensor) ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
+  printf $FH ("# Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit\n");
+  printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
+  printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
   
-  output_unexpected_features_explanation($FH, $opt_HHR);
+  output_errors_explanation($FH, $opt_HHR);
+
+  return;
+}
+
+#################################################################
+# Subroutine : output_errors_explanation()
+# Incept:      EPN, Mon May 15 05:25:51 2017
+#
+# Purpose:     Output explanation of error(s) in a gpipe file.
+#              
+# Arguments: 
+#   $FH:       file handle to output to
+#   $opt_HHR:  reference to options 2D hash
+#
+# Returns:     Nothing.
+# 
+# Dies:        Never.
+#
+################################################################# 
+sub output_errors_explanation { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_errors_explanation";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $opt_HHR) = (@_);
+
+#  print $FH ("#\n");
+#  print $FH ("# Explanation of possible values in error(s) column:\n");
+#  print $FH ("#\n");
+#  print $FH ("# This column will include a '-' if none of the error(s) listed below are detected.\n");
+#  print $FH ("# Or it will contain one or more of the following types of messages. There are no\n");
+#  print $FH ("# whitespaces in this field. Errors from 16S-sensor begin with \'sensor\'. Errors\n");
+#  print $FH ("# from ribotyper begin with 'ribotyper'.\n");
+#  print $FH ("#\n");
+
+  return;
+}
+
+#################################################################
+# Subroutine : convert_ribo_short_to_gpipe_file()
+# Incept:      EPN, Mon May 15 05:35:28 2017
+#
+# Purpose:     Convert a ribotyper short format output file 
+#              to gpipe format. 
+#
+# Arguments: 
+#   $FH:        filehandle to output to
+#   $shortfile: name of ribotyper short file
+#   $seqidx_HR: ref to hash of sequence indices
+#   $width_HR:  ref to hash with max lengths of sequence index and target
+#   $opt_HHR:   ref to 2D hash of cmdline options
+# 
+# Returns:     void
+#
+# Dies:        if short file is in unexpected format
+#
+################################################################# 
+sub convert_ribo_short_to_gpipe_file { 
+  my $nargs_expected = 5;
+  my $sub_name = "convert_ribo_short_to_gpipe_file";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($FH, $shortfile, $seqidx_HR, $width_HR, $opt_HHR) = (@_);
+
+  my @el_A         = ();    # array of elements on a line
+  my @ufeature_A   = ();    # array of unexpected features on a line
+  my $ufeature     = undef; # a single unexpected feature
+  my $ufeature_str = undef; # a single unexpected feature
+  my $line         = undef; # a line of input
+  my $failmsg      = undef; # list of errors for the sequence
+  my $idx          = undef; # a sequence index
+  my $seqid        = undef; # name of a sequence
+  my $class        = undef; # class of a sequence
+  my $strand       = undef; # strand of a sequence
+  my $passfail     = undef; # PASS or FAIL for a sequence
+  my $i;                  # a counter
+
+  open(IN, $shortfile) || die "ERROR unable to open $shortfile for reading in $sub_name"; 
+  while($line = <IN>) { 
+    if($line !~ m/^\#/) { 
+      # example lines:
+      #idx  target                                         classification         strnd   p/f  unexpected_features
+      #---  ---------------------------------------------  ---------------------  -----  ----  -------------------
+      #14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus   FAIL  *unacceptable_model
+      #15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus  FAIL  *unacceptable_model;opposite_strand
+      chomp $line;
+      
+      my @el_A = split(/\s+/, $line);
+      if(scalar(@el_A) != 6) { die "ERROR unable to parse ribotyper short file line: $line"; }
+      ($idx, $seqid, $class, $strand, $passfail, $ufeature_str) = (@el_A);
+      $failmsg = "";
+      
+      # sanity checks
+      if(! exists $seqidx_HR->{$seqid}) { 
+      die "ERROR in $sub_name, found unexpected sequence $seqid\n";
+      }
+      if($seqidx_HR->{$seqid} != $idx) { 
+        die "ERROR in $sub_name, sequence $seqid has index $idx but expected index $seqidx_HR->{$seqid}.\n";
+      }      
+      
+      if($ufeature_str eq "-") { 
+        # sanity check
+        if($passfail ne "PASS") { 
+          die "ERROR in $sub_name, sequence $seqid has no unexpected features, but does not PASS:\n$line\n";
+        }
+        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, "-", $width_HR);
+      }
+      else { # ufeature_str ne "-", look at each unexpected feature and convert to gpipe error string
+        @ufeature_A = split(";", $ufeature_str);
+        foreach $ufeature (@ufeature_A) { 
+          if($ufeature =~ m/no\_hits/) { 
+            $failmsg .= "ribotyper_nohits;";
+            $passfail = "FAIL";
+          }
+          if($ufeature =~ m/hits\_to\_more\_than\_one\_family/) { 
+            $failmsg .= "ribotyper_multiplefamilies;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/hits\_on\_both\_strands/) { 
+            $failmsg .= "ribotyper_bothstrands;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/unacceptable\_model/) { 
+            $failmsg .= "ribotyper_wrongtaxonomy;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/low\_score\_per\_posn/) { 
+            $failmsg .= "ribotyper_lowscore;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/low\_total\_coverage/) { 
+            $failmsg .= "ribotyper_lowcoverage;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/duplicate\_model\_region/) { 
+            $failmsg .= "ribotyper_duplicateregion;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/inconsistent\_hit\_order/) { 
+            $failmsg .= "ribotyper_inconsistenthits;";
+            $passfail = "FAIL";
+          }        
+          if($ufeature =~ m/multiple_hits_to_best_model/) { 
+            $failmsg .= "ribotyper_multiplehits;";
+            $passfail = "FAIL";
+          }
+        }        
+        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR);
+      } # end of else entered if $ufeature_str ne "-"
+    }
+ }   
+  return;
+}
+  
+#################################################################
+# Subroutine : output_gpipe_line()
+# Incept:      EPN, Mon May 15 05:46:28 2017
+#
+# Purpose:     Output a single line to a gpipe file file handle.
+#
+# Arguments: 
+#   $FH:        filehandle to output to
+#   $idx:       sequence index
+#   $seqid:     sequence identifier
+#   $class:     classification value
+#   $strand:    strand value
+#   $passfail:  "PASS" or "FAIL"
+#   $failmsg:   failure message
+#   $width_HR:  ref to hash with max lengths of sequence index and target
+#
+# Returns:     void
+#
+# Dies:        never
+#
+################################################################# 
+sub output_gpipe_line { 
+  my $nargs_expected = 8;
+  my $sub_name = "output_gpipe_line";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR) = (@_);
+
+  printf $FH ("%*d  %-*s  %5s  %8s  %4s  %s\n", $width_HR->{"index"}, $idx, $width_HR->{"target"}, $seqid, "?", $strand, $passfail, $failmsg);
 
   return;
 }
