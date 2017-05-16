@@ -124,7 +124,7 @@ opt_ValidateSet(\%opt_HH, \@opt_order_A);
 
 my $cmd  = undef;                    # a command to be run by ribo_RunCommand()
 my $ncpu = opt_Get("-n" , \%opt_HH); # number of CPUs to use with search command (default 0: --cpu 0)
-my @to_remove_A = (); # array of files to remove at end
+my @to_remove_A = ();                # array of files to remove at end
 
 # if $dir_out already exists remove it only if -f also used
 if(-d $dir_out) { 
@@ -206,6 +206,8 @@ my $start_secs = ribo_OutputProgressPrior("Partitioning sequence file based on s
 my %seqidx_H = (); # key: sequence name, value: index of sequence in original input sequence file (1..$nseq)
 my %seqlen_H = (); # key: sequence name, value: length of sequence
 my %width_H  = (); # hash, key is "model" or "target", value is maximum length of any model/target
+my $tot_nseq = 0;  # total number of sequences in the sequence file
+my $tot_nnt  = 0;  # total number of nucleotides in the full sequence file
 $width_H{"taxonomy"} = length("SSU.Euk-Microsporidia"); # longest possible classification
 $width_H{"strand"}   = length("mixed(S):minus(R)");     # longest possible strand string
 
@@ -223,7 +225,8 @@ my $seqstat_file = $out_root . ".seqstat";
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $seqstat_file);
 }
-ribo_ProcessSequenceFile($execs_H{"esl-seqstat"}, $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+$tot_nnt  = ribo_ProcessSequenceFile($execs_H{"esl-seqstat"}, $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+$tot_nseq = scalar(keys %seqidx_H);
 
 # create new files for the 3 sequence length ranges:
 my $nseq_parts     = 3;               # hard-coded, number of sequence partitions based on length
@@ -258,8 +261,9 @@ $start_secs = ribo_OutputProgressPrior("Running ribotyper on full sequence file"
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
-ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
+$ribo_secs = ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
 ###########################################################################
@@ -275,6 +279,8 @@ my $sensor_cmd = undef;                # command used to run sensor
 my $sensor_minlen    = opt_Get("--Sminlen",    \%opt_HH);
 my $sensor_maxlen    = opt_Get("--Smaxlen",    \%opt_HH);
 my $sensor_maxevalue = opt_Get("--Smaxevalue", \%opt_HH);
+my $sensor_secs      = 0.; # total number of seconds required for sensor commands
+my $sensor_ncpu      = ($ncpu == 0) ? 1 : $ncpu;
 
 for(my $i = 0; $i < $nseq_parts; $i++) { 
   $sensor_minid_A[$i] = opt_Get("--Sminid" . ($i+1), \%opt_HH);
@@ -284,8 +290,8 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
     $sensor_stdoutfile_A[$i]          = $out_root . "sensor-" . ($i+1) . ".stdout";
     $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
-    $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
-    ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
+    $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_ncpu $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
+    $sensor_secs += ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
     ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
   }
   else { 
@@ -321,25 +327,70 @@ convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \%seqidx_H, \%
 output_gpipe_tail($ribo_gpipe_FH, "ribotyper", \%opt_HH); 
 close($ribo_gpipe_FH);
 
-my %outcome_ct_HH = ();
-initialize_outcome_counts(\%outcome_ct_HH);
+# define data structures for statistics/counts that we will output
+my @outcome_type_A;      # array of outcome 'types', in order they should be output
+my @outcome_cat_A;       # array of outcome 'categories' in order they should be output
+my %outcome_ct_HH  = (); # 2D hash of counts of 'outcomes'
+                         # 1D key is outcome type, an element from @outcome_type_A
+                         # 2D key is outcome category, an element from @outcome_cat_A
+                         # value is count
+my @herror_type_A  = (); # array of 'human' error types, in order they should be output
+my %herror_ct_HH   = (); # 2D hash of counts of 'human' error types, 
+                         # 1D key is outcome type, e.g. "RPSF", 
+                         # 2D key is human error type, an element from @herror_type_A
+                         # value is count
+#my @merror_type_A  = (); # array of 'machine' error types, in order they should be output
+#my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types, 
+#                         # 1D key is outcome type, e.g. "RPSF", 
+#                         # 2D key is machine error type, an element from @merror_type_A
+#                         # value is count
+@outcome_type_A    = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
+@outcome_cat_A     = ("total", "pass", "indexer", "submitter", "unmapped");
+@herror_type_A     = ("CLEAN_(zero_errors)",
+                      "sensor_no",
+                      "sensor_toolong", 
+                      "sensor_tooshort", 
+                      "sensor_imperfect_match",
+                      "sensor_misassembly",
+                      "sensor_HSPproblem",
+                      "sensor_nosimilarity",
+                      "sensor_lowsimilarity",
+                      "ribotyper_no",
+                      "ribotyper_wrongdomain", 
+                      "ribotyper_multiplefamilies",
+                      "ribotyper_bothstrands",
+                      "ribotyper_wrongtaxonomy", 
+                      "ribotyper_lowscore",
+                      "ribotyper_lowcoverage",
+                      "ribotyper_duplicateregion",
+                      "ribotyper_inconsistenthits",
+                      "ribotyper_multiplehits");
+#@merror_type_A     = ()"sensor_no",
+
+initialize_hash_of_hash_of_counts(\%outcome_ct_HH, \@outcome_type_A, \@outcome_cat_A);
+initialize_hash_of_hash_of_counts(\%herror_ct_HH,  \@outcome_type_A, \@herror_type_A);
 
 # combine sensor and ribotyper gpipe to get combined gpipe file
 output_gpipe_headers($combined_gpipe_FH, "combined", \%width_H);
-combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, \%outcome_ct_HH, \%width_H, \%opt_HH);
+combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, 
+                    \%outcome_ct_HH, \%herror_ct_HH, \%width_H, \%opt_HH);
 output_gpipe_tail($combined_gpipe_FH, "combined", \%opt_HH); # 1: output is for ribo, not ribotyper
 close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
-output_outcome_statistics(*STDOUT, \%outcome_ct_HH);
+output_outcome_counts(*STDOUT, \%outcome_ct_HH);
+output_error_counts(*STDOUT, "Error counts:", $tot_nseq, \%{$herror_ct_HH{"*all*"}}, \@herror_type_A);
+
+$total_seconds += ribo_SecondsSinceEpoch();
+output_timing_statistics(*STDOUT, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $total_seconds);
 
 printf("#\n# Output saved to file $combined_gpipe_file\n");
 printf("#\n#[RIBO-SUCCESS]\n");
 
-#####################################################################
-# SUBROUTINES 
-#####################################################################
+###############
+# SUBROUTINES #
+###############
 
 #################################################################
 # Subroutine : fetch_seqs_in_length_range()
@@ -764,7 +815,7 @@ sub convert_ribo_short_to_gpipe_file {
         @ufeature_A = split(";", $ufeature_str);
         foreach $ufeature (@ufeature_A) { 
           if($ufeature =~ m/no\_hits/) { 
-            $failmsg .= "ribotyper_nohits;";
+            $failmsg .= "ribotyper_no;";
             $passfail = "FAIL";
           }
           if($ufeature =~ m/hits\_to\_more\_than\_one\_family/) { 
@@ -883,6 +934,10 @@ sub output_gpipe_line {
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
 #                       2D key: "total", "pass", "indexer", "submitter", "unmapped"
 #                       values: counts of sequences
+#   $herror_ct_HHR:     ref to 2D hash of counts of human errors
+#                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
+#                       2D key: name of human error (e.g. 'ribotyper_no')
+#                       values: counts of sequences
 #   $width_HR:          ref to hash with max lengths of sequence index, target, and classifications
 #   $opt_HHR:           ref to 2D hash of cmdline options
 # 
@@ -892,10 +947,10 @@ sub output_gpipe_line {
 #
 ################################################################# 
 sub combine_gpipe_files { 
-  my $nargs_expected = 6;
+  my $nargs_expected = 7;
   my $sub_name = "combine_gpipe_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $sensor_gpipe_file, $ribo_gpipe_file, $outcome_ct_HHR, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $sensor_gpipe_file, $ribo_gpipe_file, $outcome_ct_HHR, $herror_ct_HHR, $width_HR, $opt_HHR) = (@_);
 
   my @sel_A    = ();    # array of elements on a sensor line
   my @rel_A    = ();    # array of elements on a ribotyper line
@@ -991,7 +1046,11 @@ sub combine_gpipe_files {
       $outcome_ct_HHR->{"*all*"}{$failsto_str}++;
       $outcome_ct_HHR->{$passfail}{"total"}++;
       $outcome_ct_HHR->{$passfail}{$failsto_str}++;
-      
+
+      # update counts of errors
+      update_error_count_hash(\%{$herror_ct_HHR->{"*all*"}},   ($failmsg eq "-") ? "CLEAN_(zero_errors)" : $failmsg);
+      update_error_count_hash(\%{$herror_ct_HHR->{$passfail}}, ($failmsg eq "-") ? "CLEAN_(zero_errors)" : $failmsg);
+
       # get new lines
       $sline = <SIN>;
       $rline = <RIN>;
@@ -1079,7 +1138,7 @@ sub determine_fails_to_string {
     }
     # we can't determine submitter/indexer based on sensor errors, 
     # can we determine submitter/indexer based on ribotyper errors? 
-    elsif(($failmsg =~ m/ribotyper\_nohits/) || 
+    elsif(($failmsg =~ m/ribotyper\_no/) || 
           ($failmsg =~ m/ribotyper\_bothstrands/) ||
           ($failmsg =~ m/ribotyper\_duplicateregion/) ||
           ($failmsg =~ m/ribotyper\_inconsistenthits/) ||
@@ -1160,10 +1219,10 @@ sub determine_fails_to_string {
 }
 
 #################################################################
-# Subroutine: output_outcome_statistics()
+# Subroutine: output_outcome_counts()
 # Incept:     EPN, Mon May 15 11:51:12 2017
 #
-# Purpose:    Output the tabular outcome counts
+# Purpose:    Output the tabular outcome counts.
 #
 # Arguments:
 #   $FH:             output file handle
@@ -1174,8 +1233,8 @@ sub determine_fails_to_string {
 # Dies:     Never.
 #
 #################################################################
-sub output_outcome_statistics { 
-  my $sub_name = "output_outcome_statistics";
+sub output_outcome_counts { 
+  my $sub_name = "output_outcome_counts";
   my $nargs_expected = 2;
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
@@ -1205,7 +1264,7 @@ sub output_outcome_statistics {
   }
 
   printf $FH ("#\n");
-  printf $FH ("# Outcome statistics:\n");
+  printf $FH ("# Outcome counts:\n");
   printf $FH ("#\n");
   
   # line 1
@@ -1239,37 +1298,251 @@ sub output_outcome_statistics {
   return;
 }
 
-
 #################################################################
-# Subroutine: initialize_outcome_counts()
-# Incept:     EPN, Mon May 15 12:09:32 2017
+# Subroutine: output_error_counts()
+# Incept:     EPN, Tue May 16 09:16:49 2017
 #
-# Purpose:    Initialize outcome counts.
+# Purpose:    Output the tabular error counts for a single category,
+#             usually '*all*'.
 #
 # Arguments:
-#   $outcome_ct_HHR: ref to the outcome count 2D hash
+#   $FH:       output file handle
+#   $title:    string to call this table
+#   $tot_nseq: total number of sequences in input
+#   $ct_HR:    ref to the count 2D hash
+#   $key_AR:   ref to array of 1D keys
 #
 # Returns:  Nothing.
 # 
 # Dies:     Never.
 #
 #################################################################
-sub initialize_outcome_counts { 
-  my $sub_name = "initialize_outcome_counts()";
-  my $nargs_expected = 1;
+sub output_error_counts { 
+  my $sub_name = "output_error_counts";
+  my $nargs_expected = 5;
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($outcome_ct_HHR) = (@_);
-  
-  my @type_A     = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
-  my @category_A = ("total", "pass", "indexer", "submitter", "unmapped");
+  my ($FH, $title, $tot_nseq, $ct_HR, $key_AR) = (@_);
 
-  foreach my $type (@type_A) { 
-    %{$outcome_ct_HHR->{$type}} = ();
-    foreach my $category (@category_A) { 
-      $outcome_ct_HHR->{$type}{$category} = 0;
+  # determine max width of each column
+  my %width_H = ();  # key: name of column, value max width for column
+  my $error;         # an error name, a 1D key
+
+  $width_H{"error"}    = length("error");
+  $width_H{"seqs"}     = length("of seqs");
+  $width_H{"fraction"} = length("fraction");
+
+  foreach $error (@{$key_AR}) { 
+    if(! exists $ct_HR->{$error}) { 
+      die "ERROR in $sub_name, count for error $error does not exist";
+    }
+    if(($ct_HR->{$error} > 0) && (length($error) > $width_H{"error"})) { 
+      $width_H{"error"} = length($error);
+    }
+  }
+
+  printf $FH ("#\n");
+  printf $FH ("# $title\n");
+  printf $FH ("#\n");
+  
+  # line 1 
+  printf $FH ("# %-*s  %-*s  %*s\n",
+                  $width_H{"error"},    "", 
+                  $width_H{"seqs"},     "number",
+                  $width_H{"fraction"}, "fraction");
+  
+  # line 2
+  printf $FH ("# %-*s  %-*s  %*s\n",
+                  $width_H{"error"},    "error", 
+                  $width_H{"seqs"},     "of seqs",
+                  $width_H{"fraction"}, "of seqs");
+
+  # line 3
+  printf $FH ("# %-*s  %-*s  %*s\n", 
+                  $width_H{"error"},    ribo_GetMonoCharacterString($width_H{"error"}, "-"),
+                  $width_H{"seqs"},     ribo_GetMonoCharacterString($width_H{"seqs"}, "-"),
+                  $width_H{"fraction"}, ribo_GetMonoCharacterString($width_H{"fraction"}, "-"));
+
+  foreach $error (@{$key_AR}) { 
+    if(($ct_HR->{$error} > 0) || ($error eq "CLEAN_(zero_errors)")) { 
+      printf $FH ("  %-*s  %*d  %*.5f\n", 
+                      $width_H{"error"},    $error,
+                      $width_H{"seqs"},     $ct_HR->{$error},
+                      $width_H{"fraction"}, $ct_HR->{$error} / $tot_nseq);
+    }
+  }
+  printf $FH ("#\n");
+  
+  return;
+  
+}
+
+
+#################################################################
+# Subroutine: initialize_hash_of_hash_of_counts()
+# Incept:     EPN, Tue May 16 06:26:59 2017
+#
+# Purpose:    Initialize a 2D hash of counts given arrays that
+#             include the 1D and 2D keys.
+#
+# Arguments:
+#   $ct_HHR:  ref to the count 2D hash
+#   $key1_AR: ref to array of 1D keys
+#   $key2_AR: ref to array of 2D keys
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub initialize_hash_of_hash_of_counts { 
+  my $sub_name = "initialize_hash_of_hash_of_counts()";
+  my $nargs_expected = 3;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($ct_HHR, $key1_AR, $key2_AR) = (@_);
+  
+  foreach my $key1 (@{$key1_AR}) { 
+    %{$ct_HHR->{$key1}} = ();
+    foreach my $key2 (@{$key2_AR}) { 
+      $ct_HHR->{$key1}{$key2} = 0;
     }
   }
 
   return;
+}
+
+#################################################################
+# Subroutine: update_error_count_hash()
+# Incept:     EPN, Tue May 16 09:09:07 2017
+#
+# Purpose:    Update a hash of counts of errors given a string
+#             that has those errors separated by a ';'
+#             include the 1D and 2D keys.
+#
+# Arguments:
+#   $ct_HR:   ref to the count hash, each key is a possible error
+#   $errstr:  string of >= 1 errors, each separated by a ';'
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub update_error_count_hash { 
+  my $sub_name = "update_error_count_hash()";
+  my $nargs_expected = 2;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($ct_HR, $errstr) = (@_);
+
+  if($errstr eq "-") { die "ERROR in $sub_name, no errors in error string"; }
+  
+  my @err_A = split(";", $errstr);
+  foreach my $err (@err_A) { 
+    if(! exists $ct_HR->{$err}) { 
+      die "ERROR in $sub_name, unknown error string $err"; 
+    }
+    $ct_HR->{$err}++;
+  }
+
+  return;
+}
+
+#################################################################
+# Subroutine: output_timing_statistics()
+# Incept:     EPN, Mon May 15 15:33:17 2017
+#
+# Purpose:    Output timing statistics.
+#
+# Arguments:
+#   $FH:              output file handle
+#   $tot_nseq:        number of sequences in input file
+#   $tot_nnt:         number of nucleotides in input file
+#   $ncpu:            number of CPUs used to do searches
+#   $ribo_secs:       number of seconds required for ribotyper
+#   $sensor_secs:     number of seconds required for sensor
+#   $tot_secs:        number of seconds required for entire script
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub output_timing_statistics { 
+  my $sub_name = "output_timing_statistics";
+  my $nargs_expected = 7;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $tot_secs) = (@_);
+
+  if($ncpu == 0) { $ncpu = 1; } 
+
+  # get total number of sequences and nucleotides for each round from %{$class_stats_HHR}
+
+  # determine max width of each column
+  my %width_H = ();  # key: name of column, value max width for column
+  my $stage;         # a class, 1D key in ${%class_stats_HHR}
+
+  $width_H{"stage"}    = length("ribotyper");
+  $width_H{"nseq"}     = length("num seqs");
+  $width_H{"seqsec"}   = 7;
+  $width_H{"ntsec"}    = 10;
+  $width_H{"ntseccpu"} = 10;
+  $width_H{"total"}    = 23;
+  
+  printf $FH ("#\n");
+  printf $FH ("# Timing statistics:\n");
+  printf $FH ("#\n");
+
+  # line 1
+  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %*s\n",
+                  $width_H{"stage"},    "stage",
+                  $width_H{"nseq"},     "num seqs",
+                  $width_H{"seqsec"},   "seq/sec",
+                  $width_H{"ntsec"},    "nt/sec",
+                  $width_H{"ntseccpu"}, "nt/sec/cpu",
+                  $width_H{"total"},    "total time");
+
+  
+  # line 2
+  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %*s\n",
+                  $width_H{"stage"},    ribo_GetMonoCharacterString($width_H{"stage"}, "-"),
+                  $width_H{"nseq"},     ribo_GetMonoCharacterString($width_H{"nseq"}, "-"),
+                  $width_H{"seqsec"},   ribo_GetMonoCharacterString($width_H{"seqsec"}, "-"),
+                  $width_H{"ntsec"},    ribo_GetMonoCharacterString($width_H{"ntsec"}, "-"),
+                  $width_H{"ntseccpu"}, ribo_GetMonoCharacterString($width_H{"ntseccpu"}, "-"),
+                  $width_H{"total"},    ribo_GetMonoCharacterString($width_H{"total"}, "-"));
+  
+  $stage = "ribotyper";
+  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                  $width_H{"stage"},    $stage,
+                  $width_H{"nseq"},     $tot_nseq,
+                  $width_H{"seqsec"},   $tot_nseq / $ribo_secs,
+                  $width_H{"ntsec"},    $tot_nnt  / $ribo_secs, 
+                  $width_H{"ntseccpu"}, ($tot_nnt  / $ribo_secs) / $ncpu, 
+                  $width_H{"total"},    ribo_GetTimeString($ribo_secs));
+  
+  $stage = "sensor";
+  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                  $width_H{"stage"},    $stage,
+                  $width_H{"nseq"},     $tot_nseq,
+                  $width_H{"seqsec"},   $tot_nseq / $sensor_secs,
+                  $width_H{"ntsec"},    $tot_nnt  / $sensor_secs, 
+                  $width_H{"ntseccpu"}, ($tot_nnt  / $sensor_secs) / $ncpu, 
+                  $width_H{"total"},    ribo_GetTimeString($sensor_secs));
+
+  $stage = "total";
+  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                  $width_H{"stage"},    $stage,
+                  $width_H{"nseq"},     $tot_nseq,
+                  $width_H{"seqsec"},   $tot_nseq / $tot_secs,
+                  $width_H{"ntsec"},    $tot_nnt  / $tot_secs, 
+                  $width_H{"ntseccpu"}, ($tot_nnt  / $tot_secs) / $ncpu, 
+                  $width_H{"total"},    ribo_GetTimeString($tot_secs));
+
+  printf $FH ("#\n");
+  
+  return;
+
 }
