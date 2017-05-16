@@ -48,13 +48,14 @@ my %opt_group_desc_H = ();
 # Add all options to %opt_HH and @opt_order_A.
 # This section needs to be kept in sync (manually) with the &GetOptions call below
 $opt_group_desc_H{"1"} = "basic options";
-#     option            type       default               group   requires incompat    preamble-output                                   help-output    
-opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                            "display this help",                                       \%opt_HH, \@opt_order_A);
-opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                    "force; if <output directory> exists, overwrite it",       \%opt_HH, \@opt_order_A);
-opt_Add("-c",           "boolean", 0,                        1,    undef, undef,      "assert sequences are from cultured organisms",   "assert sequences are from cultured organisms",            \%opt_HH, \@opt_order_A);
-opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                   "use <n> CPUs",                                            \%opt_HH, \@opt_order_A);
-opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                     "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
-opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                    "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
+#     option            type       default               group   requires incompat    preamble-output                                    help-output    
+opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                             "display this help",                                       \%opt_HH, \@opt_order_A);
+opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                     "force; if <output directory> exists, overwrite it",       \%opt_HH, \@opt_order_A);
+opt_Add("-c",           "boolean", 0,                        1,    undef, undef,      "assert sequences are from cultured organisms",    "assert sequences are from cultured organisms",            \%opt_HH, \@opt_order_A);
+opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                    "use <n> CPUs",                                            \%opt_HH, \@opt_order_A);
+opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                      "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
+opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                     "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
+opt_Add("--skipsearch", "boolean", 0,                        1,    undef,  "-f",      "skip search stages, use results from earlier run","skip search stages, use results from earlier run",        \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"2"} = "16S-sensor related options";
 opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S-sensor minimum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
 opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S-sensor maximum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
@@ -65,6 +66,8 @@ opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,
 opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for all sequences to <n>",        "set 16S-sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
 opt_Add("--Smincov1",   "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs <= 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
 opt_Add("--Smincov2",   "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs  > 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
+$opt_group_desc_H{"3"} = "options for saving sequence subsets to files";
+opt_Add("--psave",       "boolean",0,                        2,    undef, undef,      "save passing sequences to a file",                            "save passing sequences to a file", \%opt_HH, \@opt_order_A);
 
 # This section needs to be kept in sync (manually) with the opt_Add() section above
 my %GetOptions_H = ();
@@ -78,6 +81,7 @@ my $options_okay =
                 'n=s'          => \$GetOptions_H{"-n"},
                 'v'            => \$GetOptions_H{"-v"},
                 'keep'         => \$GetOptions_H{"--keep"}, 
+                'skipsearch'   => \$GetOptions_H{"--skipsearch"},
                 'Sminlen=s'    => \$GetOptions_H{"--Sminlen"}, 
                 'Smaxlen=s'    => \$GetOptions_H{"--Smaxlen"}, 
                 'Smaxevalue=s' => \$GetOptions_H{"--Smaxevalue"}, 
@@ -86,7 +90,8 @@ my $options_okay =
                 'Sminid3=s'    => \$GetOptions_H{"--Sminid3"},
                 'Smincovall=s' => \$GetOptions_H{"--Smincovall"},
                 'Smincov1=s'   => \$GetOptions_H{"--Smincov1"},
-                'Smincov2=s'   => \$GetOptions_H{"--Smincov2"});
+                'Smincov2=s'   => \$GetOptions_H{"--Smincov2"},
+                'psave'        => \$GetOptions_H{"--psave"});
 
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
@@ -126,16 +131,37 @@ my $cmd  = undef;                    # a command to be run by ribo_RunCommand()
 my $ncpu = opt_Get("-n" , \%opt_HH); # number of CPUs to use with search command (default 0: --cpu 0)
 my @to_remove_A = ();                # array of files to remove at end
 
-# if $dir_out already exists remove it only if -f also used
-if(-d $dir_out) { 
-  $cmd = "rm -rf $dir_out";
-  if(opt_Get("-f", \%opt_HH)) { ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH)); }
-  else                        { die "ERROR directory named $dir_out already exists. Remove it, or use -f to overwrite it."; }
+# the way we handle the $dir_out differs markedly if we have --skipsearch enabled
+# so we handle that separately
+if(opt_Get("--skipsearch", \%opt_HH)) { 
+  if(-d $dir_out) { 
+    # this is what we expect, do nothing
+  }
+  elsif(-e $dir_out) { 
+    die "ERROR with --skipsearch, $dir_out must already exist as a directory, but it exists as a file, delete it first, then run without --skipsearch";
+  }
+  else { 
+    die "ERROR with --skipsearch, $dir_out must already exist as a directory, but it does not. Run without --skipsearch";
+  }
 }
-elsif(-e $dir_out) { 
-  $cmd = "rm $dir_out";
-  if(opt_Get("-f", \%opt_HH)) { ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH)); }
-#  else                        { die "ERROR a file named $dir_out already exists. Remove it, or use -f to overwrite it."; }
+else {  # --skipsearch not used, normal case
+  if(-d $dir_out) { 
+    $cmd = "rm -rf $dir_out";
+    if(opt_Get("--psave", \%opt_HH)) { 
+      die "ERROR you used --psave but directory $dir_out already exists.\nYou can either run with --skipsearch to create the psave file and not redo the searches OR\nremove the $dir_out directory and then rerun with --psave if you really want to redo the search steps";
+    }
+    elsif(opt_Get("-f", \%opt_HH)) { 
+      ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH)); 
+    }
+    else { 
+      die "ERROR directory named $dir_out already exists. Remove it, or use -f to overwrite it."; 
+    }
+  }
+  elsif(-e $dir_out) { 
+    $cmd = "rm $dir_out";
+    if(opt_Get("-f", \%opt_HH)) { ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH)); }
+    else                        { die "ERROR a file named $dir_out already exists. Remove it, or use -f to overwrite it."; }
+  }
 }
 # if $dir_out does not exist, create it
 if(! -d $dir_out) { 
@@ -180,10 +206,14 @@ my $unsrt_sensor_gpipe_file = $out_root . ".sensor.unsrt.gpipe"; # unsorted 'gpi
 my $sensor_gpipe_file       = $out_root . ".sensor.gpipe";       # sorted 'gpipe' format sensor output
 my $ribo_gpipe_file         = $out_root . ".ribo.gpipe";         # 'gpipe' format ribotyper output
 my $combined_gpipe_file     = $out_root . ".gpipe";              # 'gpipe' format combined output
+my $passes_sfetch_file      = $out_root . ".pass.sfetch";            # all sequences that passed
 my $passes_seq_file         = $out_root . ".pass.fa";            # all sequences that passed
 
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $unsrt_sensor_gpipe_file);
+  if(opt_Get("--psave", \%opt_HH)) { 
+    push(@to_remove_A, $passes_sfetch_file);
+  }
 }
 
 my $unsrt_sensor_gpipe_FH = undef; # output file handle for unsorted sensor gpipe file
@@ -257,14 +287,16 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 # Step 2: Run ribotyper on full sequence file
 #############################################
 # It's important we run ribotyper only once on full file so that E-values are accurate. 
-$start_secs = ribo_OutputProgressPrior("Running ribotyper on full sequence file", $progress_w, undef, *STDOUT);
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
-$ribo_secs = ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
-ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+if(! opt_Get("--skipsearch", \%opt_HH)) { 
+  $start_secs = ribo_OutputProgressPrior("Running ribotyper on full sequence file", $progress_w, undef, *STDOUT);
+  $ribo_secs = ribo_RunCommand($ribotyper_cmd, opt_Get("-v", \%opt_HH));
+  ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+}  
 
 ###########################################################################
 # Step 3: Run 16S-sensor on the (up to 3) length-partitioned sequence files
@@ -285,14 +317,16 @@ my $sensor_ncpu      = ($ncpu == 0) ? 1 : $ncpu;
 for(my $i = 0; $i < $nseq_parts; $i++) { 
   $sensor_minid_A[$i] = opt_Get("--Sminid" . ($i+1), \%opt_HH);
   if($subseq_nseq_A[$i] > 0) { 
-    $start_secs = ribo_OutputProgressPrior("Running 16S-sensor on seqs of length $spart_desc_A[$i]", $progress_w, undef, *STDOUT);
     $sensor_dir_out_A[$i]             = $dir_out . "/sensor-" . ($i+1) . "-out";
     $sensor_stdoutfile_A[$i]          = $out_root . "sensor-" . ($i+1) . ".stdout";
     $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
     $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_ncpu $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
-    $sensor_secs += ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
-    ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+    if(! opt_Get("--skipsearch", \%opt_HH)) { 
+      $start_secs = ribo_OutputProgressPrior("Running 16S-sensor on seqs of length $spart_desc_A[$i]", $progress_w, undef, *STDOUT);
+      $sensor_secs += ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
+      ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+    }
   }
   else { 
     $sensor_dir_out_A[$i]            = undef;
@@ -379,13 +413,23 @@ close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
+# save output files that were specified with cmdline options
+my $nseq_passed    = 0; # number of sequences 
+my $nseq_revcomped = 0; # number of sequences reverse complemented
+if(opt_Get("--psave", \%opt_HH)) { 
+  ($nseq_passed, $nseq_revcomped) = fetch_seqs_given_gpipe_file($execs_H{"esl-sfetch"}, $seq_file, $combined_gpipe_file, "pass", 6, 1, $passes_sfetch_file, $passes_seq_file, \%seqlen_H, \%opt_HH);
+}
+
 output_outcome_counts(*STDOUT, \%outcome_ct_HH);
 output_error_counts(*STDOUT, "Error counts:", $tot_nseq, \%{$herror_ct_HH{"*all*"}}, \@herror_type_A);
 
 $total_seconds += ribo_SecondsSinceEpoch();
-output_timing_statistics(*STDOUT, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $total_seconds);
+output_timing_statistics(*STDOUT, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $total_seconds, \%opt_HH);
 
 printf("#\n# Output saved to file $combined_gpipe_file\n");
+if((opt_Get("--psave", \%opt_HH)) && ($nseq_passed > 0)) { 
+  printf("#\n# The $nseq_passed sequences that passed (with $nseq_revcomped minus strand sequences\n# reverse complemented) saved to file $passes_seq_file\n");
+}
 printf("#\n#[RIBO-SUCCESS]\n");
 
 ###############
@@ -401,7 +445,7 @@ printf("#\n#[RIBO-SUCCESS]\n");
 #
 # Arguments: 
 #   $sfetch_exec:  path to esl-sfetch executable
-#   $seq_file:     sequence file to process
+#   $seq_file:     sequence file to fetch sequences from
 #   $minlen:       minimum length sequence to fetch
 #   $maxlen:       maximum length sequence to fetch (-1 for infinity)
 #   $seqlen_HR:    ref to hash of sequence lengths to fill here
@@ -639,7 +683,7 @@ sub output_gpipe_headers {
                 $width_HR->{"index"},    "#idx", 
                 $width_HR->{"target"},   "sequence", 
                 $width_HR->{"taxonomy"}, "taxonomy",
-                $width_HR->{"strand"},   "strnd", 
+                $width_HR->{"strand"},   "strand", 
                 "p/f", "error(s)");
     printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "--------");
   }
@@ -648,7 +692,7 @@ sub output_gpipe_headers {
                 $width_HR->{"index"},    "#idx", 
                 $width_HR->{"target"},   "sequence", 
                 $width_HR->{"taxonomy"}, "taxonomy",
-                $width_HR->{"strand"},   "strnd", 
+                $width_HR->{"strand"},   "strand", 
                 "type", "failsto", "error(s)");
     printf $FH ("%s  %s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "---------", "--------");
   }
@@ -1463,6 +1507,7 @@ sub update_error_count_hash {
 #   $ribo_secs:       number of seconds required for ribotyper
 #   $sensor_secs:     number of seconds required for sensor
 #   $tot_secs:        number of seconds required for entire script
+#   $opt_HHR:         ref to 2D hash of cmdline options
 #
 # Returns:  Nothing.
 # 
@@ -1471,10 +1516,10 @@ sub update_error_count_hash {
 #################################################################
 sub output_timing_statistics { 
   my $sub_name = "output_timing_statistics";
-  my $nargs_expected = 7;
+  my $nargs_expected = 8;
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($FH, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $tot_secs) = (@_);
+  my ($FH, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $tot_secs, $opt_HHR) = (@_);
 
   if($ncpu == 0) { $ncpu = 1; } 
 
@@ -1515,34 +1560,225 @@ sub output_timing_statistics {
                   $width_H{"total"},    ribo_GetMonoCharacterString($width_H{"total"}, "-"));
   
   $stage = "ribotyper";
-  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
-                  $width_H{"stage"},    $stage,
-                  $width_H{"nseq"},     $tot_nseq,
-                  $width_H{"seqsec"},   $tot_nseq / $ribo_secs,
-                  $width_H{"ntsec"},    $tot_nnt  / $ribo_secs, 
-                  $width_H{"ntseccpu"}, ($tot_nnt  / $ribo_secs) / $ncpu, 
-                  $width_H{"total"},    ribo_GetTimeString($ribo_secs));
-  
+  if(opt_Get("--skipsearch", $opt_HHR)) { 
+    printf $FH ("  %-*s  %*d  %*s  %*s  %*s  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   "-",
+                $width_H{"ntsec"},    "-",
+                $width_H{"ntseccpu"}, "-",
+                $width_H{"total"},    "-");
+  }
+  else { 
+    printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   $tot_nseq / $ribo_secs,
+                $width_H{"ntsec"},    $tot_nnt  / $ribo_secs, 
+                $width_H{"ntseccpu"}, ($tot_nnt  / $ribo_secs) / $ncpu, 
+                $width_H{"total"},    ribo_GetTimeString($ribo_secs));
+  }
+     
   $stage = "sensor";
-  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
-                  $width_H{"stage"},    $stage,
-                  $width_H{"nseq"},     $tot_nseq,
-                  $width_H{"seqsec"},   $tot_nseq / $sensor_secs,
-                  $width_H{"ntsec"},    $tot_nnt  / $sensor_secs, 
-                  $width_H{"ntseccpu"}, ($tot_nnt  / $sensor_secs) / $ncpu, 
-                  $width_H{"total"},    ribo_GetTimeString($sensor_secs));
+  if(opt_Get("--skipsearch", $opt_HHR)) { 
+    printf $FH ("  %-*s  %*d  %*s  %*s  %*s  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   "-",
+                $width_H{"ntsec"},    "-",
+                $width_H{"ntseccpu"}, "-",
+                $width_H{"total"},    "-");
+  }
+  else { 
+    printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   $tot_nseq / $sensor_secs,
+                $width_H{"ntsec"},    $tot_nnt  / $sensor_secs, 
+                $width_H{"ntseccpu"}, ($tot_nnt  / $sensor_secs) / $ncpu, 
+                $width_H{"total"},    ribo_GetTimeString($sensor_secs));
+  }
 
   $stage = "total";
-  printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
-                  $width_H{"stage"},    $stage,
-                  $width_H{"nseq"},     $tot_nseq,
-                  $width_H{"seqsec"},   $tot_nseq / $tot_secs,
-                  $width_H{"ntsec"},    $tot_nnt  / $tot_secs, 
-                  $width_H{"ntseccpu"}, ($tot_nnt  / $tot_secs) / $ncpu, 
-                  $width_H{"total"},    ribo_GetTimeString($tot_secs));
+  if(opt_Get("--skipsearch", $opt_HHR)) { 
+    printf $FH ("  %-*s  %*d  %*s  %*s  %*s  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   "-",
+                $width_H{"ntsec"},    "-",
+                $width_H{"ntseccpu"}, "-",
+                $width_H{"total"},    ribo_GetTimeString($tot_secs));
+  }
+  else { 
+    printf $FH ("  %-*s  %*d  %*.1f  %*.1f  %*.1f  %*s\n", 
+                $width_H{"stage"},    $stage,
+                $width_H{"nseq"},     $tot_nseq,
+                $width_H{"seqsec"},   $tot_nseq / $tot_secs,
+                $width_H{"ntsec"},    $tot_nnt  / $tot_secs, 
+                $width_H{"ntseccpu"}, ($tot_nnt  / $tot_secs) / $ncpu, 
+                $width_H{"total"},    ribo_GetTimeString($tot_secs));
+  }
 
   printf $FH ("#\n");
   
   return;
 
+}
+
+#################################################################
+# Subroutine: fetch_seqs_given_gpipe_file()
+# Incept:     EPN, Tue May 16 11:38:57 2017
+#
+# Purpose:    Fetch sequences to a file given the gpipe output file
+#             based on the sequence type.
+#
+# Arguments:
+#   $sfetch_exec: path to esl-sfetch executable
+#   $seq_file:    sequence file to fetch from 
+#   $gpipe_file:  the gpipe file to parse to determine what sequences
+#                 to fetch
+#   $string:      string to match in column $column of sequences to fetch
+#   $column:      column to look for $string in (<= 7)
+#   $do_revcomp:  '1' to reverse complement minus strand sequences, '0' not to
+#   $sfetch_file: the sfetch file to create for fetching purposes 
+#   $subseq_file: the sequence file to create
+#   $opt_HHR:     ref to 2D hash of cmdline options
+#
+# Returns:  Two values:
+#           Number of sequences fetched.
+#           Number of sequences reversed complemented as they're fetched
+#           (second value will always be 0 if $do_revcomp is 0)
+#
+# Dies:     Never.
+#
+#################################################################
+sub fetch_seqs_given_gpipe_file { 
+  my $sub_name = "fetch_seqs_given_gpipe_file()";
+  my $nargs_expected = 10;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($sfetch_exec, $seq_file, $gpipe_file, $string, $column, $do_revcomp, $sfetch_file, $subseq_file, $seqlen_HR, $opt_HHR) = (@_);
+
+  my @el_A           = ();    # array of the space delimited tokens in a line
+  my $nseq           = 0;     # number of sequences fetched
+  my $nseq_revcomped = 0;     # number of sequences reversed complemented when they're fetched
+  my $strand         = undef; # strand of the hit
+  my $seqid          = undef; # a sequence id
+  my $seqlen         = undef; # length of a sequence
+
+  if(($column <= 0) || ($column > 7)) { 
+    die "ERROR in $sub_name, invalid column: $column, should be between 1 and 7"; 
+  }
+
+  open(GPIPE,        $gpipe_file) || die "ERROR in $sub_name, unable to open $gpipe_file for reading";
+  open(SFETCH, ">", $sfetch_file) || die "ERROR in $sub_name, unable to open $sfetch_file for writing";
+
+  while(my $line = <GPIPE>) { 
+    # example lines
+    ##idx   sequence                                      taxonomy               strnd              type    failsto  error(s)
+    ##----  --------------------------------------------  ---------------------  -----------------  ----  ---------  --------
+    #1      gi|290622485|gb|GU635890.1|                   SSU.Bacteria           plus               RPSP       pass  -
+    #2      gi|188039824|gb|EU677786.1|                   SSU.Bacteria           plus               RPSP       pass  -
+    #3      gi|333495999|gb|JF781658.1|                   SSU.Bacteria           plus               RPSP       pass  -
+    #4      gi|269165748|gb|GU035339.1|                   SSU.Bacteria           plus               RPSP       pass  -
+    if($line !~ m/^\#/) { 
+      @el_A = split(/\s+/, $line);
+      if($el_A[($column-1)] =~ m/$string/) { 
+        # format of sfetch line: <newname> <start> <end> <sourcename>
+        $seqid  = $el_A[1];
+        if(! exists $seqlen_HR->{$seqid}) { 
+          die "ERROR in $sub_name, no length information for sequence $seqid";
+        }
+        $seqlen = $seqlen_HR->{$seqid};
+
+        if($do_revcomp) { 
+          # determine if sequence is minus strand:
+          $strand = determine_strand_given_gpipe_strand($el_A[3], $el_A[4]);
+          if($strand eq "minus") { 
+            printf SFETCH ("$seqid  $seqlen 1 $seqid\n");
+            $nseq_revcomped++;
+          }
+          else { # not minus strand
+            printf SFETCH ("$seqid  1 $seqlen $seqid\n");
+          }
+        }
+        else { # ! $do_revcomp
+          printf SFETCH ("$seqid\n");
+        }
+        $nseq++;
+      }
+    }
+  }
+  close(GPIPE);
+  close(SFETCH);
+
+  if($nseq > 0) { 
+    my $sfetch_cmd;
+    if($do_revcomp) { 
+      $sfetch_cmd = $sfetch_exec . " -Cf $seq_file $sfetch_file > $subseq_file"; 
+    }
+    else { 
+      $sfetch_cmd = $sfetch_exec . " -f $seq_file $sfetch_file > $subseq_file"; 
+    }
+    ribo_RunCommand($sfetch_cmd, opt_Get("-v", $opt_HHR));
+  }
+
+  return ($nseq, $nseq_revcomped);
+}
+
+#################################################################
+# Subroutine: determine_strand_given_gpipe_strand()
+# Incept:     EPN, Tue May 16 15:30:53 2017
+#
+# Purpose:    Given the strand field for a sequence from the GPIPE file,
+#             determine if it is 'minus' or 'plus' strand. 
+#
+# Arguments:
+#   $strand:      <s> = 'plus', 'minus', 'NA', or 'mixed', OR <s>(S):<s>(R)
+#                 for <s>, we just return <s>, for <s1>(S):<s2>(R) we return
+#                 <s2> if ribotyper passed (determine from $type string)
+#                 and we return <s1> if ribotyper failed and ribotyper passed
+#   $type:        'RPSP', 'RPSF', 'RFSP', /RFSF'
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub determine_strand_given_gpipe_strand { 
+  my $sub_name = "determine_strand_given_gpipe_strand()";
+  my $nargs_expected = 2;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my $rstrand = undef; # strand predicted by ribotyper
+  my $sstrand = undef; # strand predicted by sensor
+
+  my ($strand, $type) = (@_);
+
+  if(($strand eq "plus")   || 
+     ($strand eq "minus")  || 
+     ($strand eq "NA")     || 
+     ($strand eq "mixed")) { 
+    return $strand;
+  }
+  elsif($strand =~ /^(\S+)\(S\)(\S+)\(R\)$/) { 
+    ($sstrand, $rstrand) = ($1, $2);
+    if($type eq "RPSP" || $type eq "RPSF") { 
+      return $rstrand;
+    }
+    elsif($type eq "RFSP") { 
+      return $sstrand;
+    }
+    elsif($type eq "RFSF") { 
+      return $strand; # return full string
+    }
+    else { 
+      die "ERROR in $sub_name, unexpected type: $type";
+    }
+  }
+  else { 
+    die "ERROR in $sub_name, unable to parse strand value: $strand";
+  }
+
+  return; # never reached
 }
