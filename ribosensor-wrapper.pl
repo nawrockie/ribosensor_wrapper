@@ -16,9 +16,20 @@ if(! (-d $ribodir)) {
   printf STDERR ("\nERROR, the ribotyper directory specified by your environment variable RIBODIR does not exist.\n"); 
   exit(1); 
 }    
-my $ribo_exec_dir  = $ribodir . "/";
-my $esl_exec_dir   = $ribodir . "/infernal-1.1.2/easel/miniapps/";
-my $ribo_model_dir = $ribodir . "/models/";
+my $sensordir = $ENV{'SENSORDIR'};
+if(! exists($ENV{'SENSORDIR'})) { 
+  printf STDERR ("\nERROR, the environment variable SENSORDIR is not set, please set it to the directory where you installed 16S_sensor.\n"); 
+  exit(1); 
+}
+if(! (-d $sensordir)) { 
+  printf STDERR ("\nERROR, the 16S_sensor directory specified by your environment variable SENSORDIR does not exist.\n"); 
+  exit(1); 
+}    
+
+my $ribo_exec_dir   = $ribodir . "/";
+my $sensor_exec_dir = $sensordir . "/";
+my $esl_exec_dir    = $ribodir . "/infernal-1.1.2/easel/miniapps/";
+my $ribo_model_dir  = $ribodir . "/models/";
 
 #########################################################
 # Command line and option processing using epn-options.pm
@@ -64,8 +75,8 @@ opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,
 opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs [351..600] nt to <n>", "set 16S-sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
 opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs > 600 nt to <n>",      "set 16S-sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
 opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for all sequences to <n>",        "set 16S-sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov1",   "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs <= 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov2",   "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs  > 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov1",   "integer", 80,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs <= 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov2",   "integer", 86,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs  > 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"3"} = "options for saving sequence subsets to files";
 opt_Add("--psave",       "boolean",0,                        2,    undef, undef,      "save passing sequences to a file",                            "save passing sequences to a file", \%opt_HH, \@opt_order_A);
 
@@ -191,12 +202,10 @@ opt_OutputPreamble(*STDOUT, \@arg_desc_A, \@arg_A, \%opt_HH, \@opt_order_A);
 
 # make sure we have the sensor executable files in the current directory
 my %execs_H = (); # hash with paths to all required executables
-$execs_H{"sensor"}                = "./16S_sensor_script";
-$execs_H{"sensor-partition"}      = "./partition_by_length_v2.pl";
-$execs_H{"sensor-classification"} = "./classification_v3.pl";
-$execs_H{"esl-seqstat"}           = $esl_exec_dir   . "esl-seqstat";
-$execs_H{"esl-sfetch"}            = $esl_exec_dir   . "esl-sfetch";
-$execs_H{"ribo"}                  = $ribo_exec_dir  . "ribotyper.pl";
+$execs_H{"esl-seqstat"} = $esl_exec_dir    . "esl-seqstat";
+$execs_H{"esl-sfetch"}  = $esl_exec_dir    . "esl-sfetch";
+$execs_H{"ribo"}        = $ribo_exec_dir   . "ribotyper.pl";
+$execs_H{"sensor"}      = $sensor_exec_dir . "16S_sensor_script";
 ribo_ValidateExecutableHash(\%execs_H);
 
 ##############################
@@ -339,6 +348,57 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
 ###########################################################################
 # Step 4: Parse 16S-sensor results and create intermediate file 
 ###########################################################################
+# define data structures for statistics/counts that we will output
+my @outcome_type_A;      # array of outcome 'types', in order they should be output
+my @outcome_cat_A;       # array of outcome 'categories' in order they should be output
+my %outcome_ct_HH  = (); # 2D hash of counts of 'outcomes'
+                         # 1D key is outcome type, an element from @outcome_type_A
+                         # 2D key is outcome category, an element from @outcome_cat_A
+                         # value is count
+my @herror_type_A  = (); # array of 'human' error types, in order they should be output
+my %herror_ct_HH   = (); # 2D hash of counts of 'human' error types, 
+                         # 1D key is outcome type, e.g. "RPSF", 
+                         # 2D key is human error type, an element from @herror_type_A
+                         # value is count
+my @merror_type_A  = (); # array of 'machine' error types, in order they should be output
+my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types, 
+#                         # 1D key is outcome type, e.g. "RPSF", 
+#                         # 2D key is machine error type, an element from @merror_type_A
+#                         # value is count
+@outcome_type_A    = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
+@outcome_cat_A     = ("total", "pass", "indexer", "submitter", "unmapped");
+@herror_type_A     = ("CLEAN",
+                      "S_NoHits",
+                      "S_TooLong", 
+                      "S_TooShort", 
+                      "S_LowScore",
+                      "S_BothStrands",
+                      "S_MultipleHits",
+                      "S_NoSimilarity",
+                      "S_LowSimilarity",
+                      "R_NoHits",
+                      "R_MultipleFamilies",
+                      "R_BothStrands",
+                      "R_UnacceptableModel", 
+                      "R_QuestionableModel", 
+                      "R_LowScore",
+                      "R_LowCoverage",
+                      "R_DuplicateRegion",
+                      "R_InconsistentHits",
+                      "R_MultipleHits");
+@merror_type_A     = ("SEQ_HOM_Not16SrRNA",
+                      "SEQ_HOM_16SAnd23SrRNA",
+                      "SEQ_HOM_LowSimilarity",
+                      "SEQ_HOM_LengthShort",
+                      "SEQ_HOM_LengthLong",
+                      "SEQ_HOM_MisAsBothStrands",
+                      "SEQ_HOM_MisAsHitOrder",
+                      "SEQ_HOM_MisAsDupRegion",
+                      "SEQ_HOM_TaxNotArcBacChl",
+                      "SEQ_HOM_TaxChloroplast",
+                      "SEQ_HOM_LowCoverage",
+                      "SEQ_HOM_MultipleHits");
+
 $start_secs = ribo_OutputProgressPrior("Parsing and combining 16S-sensor and ribotyper output", $progress_w, undef, *STDOUT);
 # parse 16S-sensor file to create gpipe format file
 # first unsorted, then sort it.
@@ -357,49 +417,9 @@ close($sensor_gpipe_FH);
 
 # convert ribotyper output to gpipe 
 output_gpipe_headers($ribo_gpipe_FH, "ribotyper", \%width_H);
-convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \%seqidx_H, \%width_H, \%opt_HH);
+convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \@herror_type_A, \%seqidx_H, \%width_H, \%opt_HH);
 output_gpipe_tail($ribo_gpipe_FH, "ribotyper", \%opt_HH); 
 close($ribo_gpipe_FH);
-
-# define data structures for statistics/counts that we will output
-my @outcome_type_A;      # array of outcome 'types', in order they should be output
-my @outcome_cat_A;       # array of outcome 'categories' in order they should be output
-my %outcome_ct_HH  = (); # 2D hash of counts of 'outcomes'
-                         # 1D key is outcome type, an element from @outcome_type_A
-                         # 2D key is outcome category, an element from @outcome_cat_A
-                         # value is count
-my @herror_type_A  = (); # array of 'human' error types, in order they should be output
-my %herror_ct_HH   = (); # 2D hash of counts of 'human' error types, 
-                         # 1D key is outcome type, e.g. "RPSF", 
-                         # 2D key is human error type, an element from @herror_type_A
-                         # value is count
-#my @merror_type_A  = (); # array of 'machine' error types, in order they should be output
-#my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types, 
-#                         # 1D key is outcome type, e.g. "RPSF", 
-#                         # 2D key is machine error type, an element from @merror_type_A
-#                         # value is count
-@outcome_type_A    = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
-@outcome_cat_A     = ("total", "pass", "indexer", "submitter", "unmapped");
-@herror_type_A     = ("CLEAN_(zero_errors)",
-                      "sensor_no",
-                      "sensor_toolong", 
-                      "sensor_tooshort", 
-                      "sensor_imperfect_match",
-                      "sensor_misassembly",
-                      "sensor_HSPproblem",
-                      "sensor_nosimilarity",
-                      "sensor_lowsimilarity",
-                      "ribotyper_no",
-                      "ribotyper_wrongdomain", 
-                      "ribotyper_multiplefamilies",
-                      "ribotyper_bothstrands",
-                      "ribotyper_wrongtaxonomy", 
-                      "ribotyper_lowscore",
-                      "ribotyper_lowcoverage",
-                      "ribotyper_duplicateregion",
-                      "ribotyper_inconsistenthits",
-                      "ribotyper_multiplehits");
-#@merror_type_A     = ()"sensor_no",
 
 initialize_hash_of_hash_of_counts(\%outcome_ct_HH, \@outcome_type_A, \@outcome_cat_A);
 initialize_hash_of_hash_of_counts(\%herror_ct_HH,  \@outcome_type_A, \@herror_type_A);
@@ -561,15 +581,15 @@ sub parse_sensor_files {
 
         if($class eq "too long") { 
           $passfail = "FAIL";
-          $failmsg .= "sensor_toolong;"; # TODO: add to analysis document
+          $failmsg .= "S_TooLong;"; # TODO: add to analysis document
         }
         elsif($class eq "too short") { 
           $passfail = "FAIL";
-          $failmsg .= "sensor_tooshort;"; # TODO: add to analysis document
+          $failmsg .= "S_TooShort;"; # TODO: add to analysis document
         }
         elsif($class eq "no") { 
           $passfail = "FAIL";
-          $failmsg .= "sensor_no;"; # TODO: add to analysis document
+          $failmsg .= "S_NoHits;"; # TODO: add to analysis document
         }
         elsif($class eq "yes") { 
           $passfail = "PASS";
@@ -579,27 +599,27 @@ sub parse_sensor_files {
         #}
         elsif($class eq "imperfect_match") { 
           $passfail = "FAIL";
-          $failmsg  .= "sensor_imperfect_match;";
+          $failmsg  .= "S_LowScore;";
         }
         # now stop the else, because remainder don't depend on class
         if($strand eq "mixed") { 
           $passfail = "FAIL";
-          $failmsg  .= "sensor_misassembly;";
+          $failmsg  .= "S_BothStrands;";
         }
         if(($nhits ne "NA") && ($nhits > 1)) { 
           $passfail = "FAIL";
-          $failmsg  .= "sensor_HSPproblem;";
+          $failmsg  .= "S_MultipleHits;";
         }
         if($cov ne "NA") { 
           $cov_part = determine_coverage_threshold($seqlen_HR->{$seqid}, $minlen_AR, $maxlen_AR, $ncov_parts);
           if($cov < $cthresh_all) { 
             $passfail = "FAIL";
-            $failmsg  .= "sensor_nosimilarity;"; 
+            $failmsg  .= "S_NoSimilarity;"; 
             # TODO put this in table 1 in analysis doc, in table 3 but not table 1
           }
           elsif($cov < $cthresh_part_A[$cov_part]) { 
             $passfail = "FAIL";
-            $failmsg  .= "sensor_lowsimilarity;";
+            $failmsg  .= "S_LowSimilarity;";
           }
         }
         if($failmsg eq "") { $failmsg = "-"; }
@@ -794,11 +814,12 @@ sub output_errors_explanation {
 #              to gpipe format. 
 #
 # Arguments: 
-#   $FH:        filehandle to output to
-#   $shortfile: name of ribotyper short file
-#   $seqidx_HR: ref to hash of sequence indices
-#   $width_HR:  ref to hash with max lengths of sequence index and target
-#   $opt_HHR:   ref to 2D hash of cmdline options
+#   $FH:             filehandle to output to
+#   $shortfile:      name of ribotyper short file
+#   $herror_type_AR: ref to array of human error types for ribosensor
+#   $seqidx_HR:      ref to hash of sequence indices
+#   $width_HR:       ref to hash with max lengths of sequence index and target
+#   $opt_HHR:        ref to 2D hash of cmdline options
 # 
 # Returns:     void
 #
@@ -806,23 +827,26 @@ sub output_errors_explanation {
 #
 ################################################################# 
 sub convert_ribo_short_to_gpipe_file { 
-  my $nargs_expected = 5;
+  my $nargs_expected = 6;
   my $sub_name = "convert_ribo_short_to_gpipe_file";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $shortfile, $seqidx_HR, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $shortfile, $herror_type_AR, $seqidx_HR, $width_HR, $opt_HHR) = (@_);
 
-  my @el_A         = ();    # array of elements on a line
-  my @ufeature_A   = ();    # array of unexpected features on a line
-  my $ufeature     = undef; # a single unexpected feature
-  my $ufeature_str = undef; # a single unexpected feature
-  my $line         = undef; # a line of input
-  my $failmsg      = undef; # list of errors for the sequence
-  my $idx          = undef; # a sequence index
-  my $seqid        = undef; # name of a sequence
-  my $class        = undef; # class of a sequence
-  my $strand       = undef; # strand of a sequence
-  my $passfail     = undef; # PASS or FAIL for a sequence
-  my $i;                  # a counter
+  my @el_A              = ();    # array of elements on a line
+  my @ufeature_A        = ();    # array of unexpected features on a line
+  my $ufeature          = undef; # a single unexpected feature
+  my $ufeature_str      = undef; # a string of unexpected features
+  my $ufeature_stripped = undef; # an unexpected feature without sequence specific information
+  my $line              = undef; # a line of input
+  my $failmsg           = undef; # list of errors for the sequence
+  my $idx               = undef; # a sequence index
+  my $seqid             = undef; # name of a sequence
+  my $class             = undef; # class of a sequence
+  my $strand            = undef; # strand of a sequence
+  my $passfail          = undef; # PASS or FAIL for a sequence
+  my $i;                         # a counter
+  my $found_match  = 0;          # used to look for matching ribotyper error in @{$herror_type_AR}
+  my $herror;                    # an element of @{$herror_type_AR}
 
   open(IN, $shortfile) || die "ERROR unable to open $shortfile for reading in $sub_name"; 
   while($line = <IN>) { 
@@ -830,8 +854,8 @@ sub convert_ribo_short_to_gpipe_file {
       # example lines:
       #idx  target                                         classification         strnd   p/f  unexpected_features
       #---  ---------------------------------------------  ---------------------  -----  ----  -------------------
-      #14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus   FAIL  *unacceptable_model
-      #15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus  FAIL  *unacceptable_model;opposite_strand
+      #14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus   FAIL  *UnacceptableModel(SSU_rRNA_Eukarya)
+      #15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus  FAIL  *UnacceptableModel(SSU_rRNA_Eukarya);MinusStrand
       chomp $line;
       
       my @el_A = split(/\s+/, $line);
@@ -855,44 +879,23 @@ sub convert_ribo_short_to_gpipe_file {
         }
         output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, "-", "ribotyper", $width_HR, $opt_HHR);
       }
-      else { # ufeature_str ne "-", look at each unexpected feature and convert to gpipe error string
+      else { # ufeature_str ne "-", prepend an "R_" to each unexpected feature
         @ufeature_A = split(";", $ufeature_str);
-        foreach $ufeature (@ufeature_A) { 
-          if($ufeature =~ m/no\_hits/) { 
-            $failmsg .= "ribotyper_no;";
-            $passfail = "FAIL";
-          }
-          if($ufeature =~ m/hits\_to\_more\_than\_one\_family/) { 
-            $failmsg .= "ribotyper_multiplefamilies;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/hits\_on\_both\_strands/) { 
-            $failmsg .= "ribotyper_bothstrands;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/unacceptable\_model/) { 
-            $failmsg .= "ribotyper_wrongtaxonomy;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/low\_score\_per\_posn/) { 
-            $failmsg .= "ribotyper_lowscore;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/low\_total\_coverage/) { 
-            $failmsg .= "ribotyper_lowcoverage;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/duplicate\_model\_region/) { 
-            $failmsg .= "ribotyper_duplicateregion;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/inconsistent\_hit\_order/) { 
-            $failmsg .= "ribotyper_inconsistenthits;";
-            $passfail = "FAIL";
-          }        
-          if($ufeature =~ m/multiple_hits_to_best_model/) { 
-            $failmsg .= "ribotyper_multiplehits;";
-            $passfail = "FAIL";
+        if(scalar(@ufeature_A) > 0) { 
+          $passfail = "FAIL";
+          foreach $ufeature (@ufeature_A) { 
+            $ufeature =~ s/^\*//; # remove leading '*' if it exists
+            $ufeature_stripped = $ufeature; 
+            $ufeature_stripped =~ s/\:.+$//;
+            $ufeature_stripped = "R_" . $ufeature_stripped;
+            # determine if this is a ufeature that maps to an error in ribosensor
+            $found_match = 0;
+            foreach $herror (@{$herror_type_AR}) { 
+              if($herror eq $ufeature_stripped) { $found_match = 1; last; }
+            }
+            if($found_match) { 
+              $failmsg .= "R_" . $ufeature . ";";
+            }
           }
         }
         if($failmsg eq "") { 
@@ -948,7 +951,7 @@ sub output_gpipe_line {
                 $passfail, $failmsg);
   }
   elsif($type eq "combined") { 
-    $failsto = determine_fails_to_string($passfail, $failmsg, $opt_HHR);
+    $failsto = determine_fails_to_string_May15_meeting($passfail, $failmsg, $opt_HHR);
     printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
                 $width_HR->{"index"},    $idx, 
                 $width_HR->{"target"},   $seqid, 
@@ -980,7 +983,7 @@ sub output_gpipe_line {
 #                       values: counts of sequences
 #   $herror_ct_HHR:     ref to 2D hash of counts of human errors
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
-#                       2D key: name of human error (e.g. 'ribotyper_no')
+#                       2D key: name of human error (e.g. 'R_NoHits')
 #                       values: counts of sequences
 #   $width_HR:          ref to hash with max lengths of sequence index, target, and classifications
 #   $opt_HHR:           ref to 2D hash of cmdline options
@@ -1092,8 +1095,8 @@ sub combine_gpipe_files {
       $outcome_ct_HHR->{$passfail}{$failsto_str}++;
 
       # update counts of errors
-      update_error_count_hash(\%{$herror_ct_HHR->{"*all*"}},   ($failmsg eq "-") ? "CLEAN_(zero_errors)" : $failmsg);
-      update_error_count_hash(\%{$herror_ct_HHR->{$passfail}}, ($failmsg eq "-") ? "CLEAN_(zero_errors)" : $failmsg);
+      update_error_count_hash(\%{$herror_ct_HHR->{"*all*"}},   ($failmsg eq "-") ? "CLEAN" : $failmsg);
+      update_error_count_hash(\%{$herror_ct_HHR->{$passfail}}, ($failmsg eq "-") ? "CLEAN" : $failmsg);
 
       # get new lines
       $sline = <SIN>;
@@ -1122,7 +1125,7 @@ sub combine_gpipe_files {
 
   
 #################################################################
-# Subroutine : determine_fails_to_string()
+# Subroutine : determine_fails_to_string_May15_meeting()
 # Incept:      EPN, Mon May 15 10:42:52 2017
 #
 # Purpose:     Given a 4 character ribotyper/sensor pass fail type
@@ -1148,9 +1151,9 @@ sub combine_gpipe_files {
 # Dies:        never
 #
 ################################################################# 
-sub determine_fails_to_string { 
+sub determine_fails_to_string_May15_meeting { 
   my $nargs_expected = 3;
-  my $sub_name = "determine_fails_to_string";
+  my $sub_name = "determine_fails_to_string_May15_meeting";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
   my ($pftype, $failmsg, $opt_HHR) = (@_);
 
@@ -1164,34 +1167,34 @@ sub determine_fails_to_string {
     if($failmsg eq "-") { # failmsg should not be empty
       die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
     }
-    if($failmsg !~ m/sensor/) { # failmsg should contain at least one sensor error
+    if($failmsg !~ m/S\_/) { # failmsg should contain at least one sensor error
       die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a sensor error: $failmsg"; 
     }
-    if($failmsg !~ m/ribotyper/) { # failmsg should contain at least one ribotyper error
+    if($failmsg !~ m/R\_/) { # failmsg should contain at least one ribotyper error
       die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
     }
 
     # can we determine submitter/indexer based on sensor errors? 
-    if(($failmsg =~ m/sensor\_misassembly/)   || 
-       ($failmsg =~ m/sensor\_lowsimilarity/) || 
-       ($failmsg =~ m/sensor\_no/)) { 
+    if(($failmsg =~ m/S\_BothStrands/)   || 
+       ($failmsg =~ m/S\_LowSimilarity/) || 
+       ($failmsg =~ m/S\_NoHits/)) { 
       return "submitter"; 
     }
-    elsif($failmsg =~ m/sensor\_HSPproblem/) { 
+    elsif($failmsg =~ m/S\_MultipleHits/) { 
       return "indexer"; 
     }
     # we can't determine submitter/indexer based on sensor errors, 
     # can we determine submitter/indexer based on ribotyper errors? 
-    elsif(($failmsg =~ m/ribotyper\_no/) || 
-          ($failmsg =~ m/ribotyper\_bothstrands/) ||
-          ($failmsg =~ m/ribotyper\_duplicateregion/) ||
-          ($failmsg =~ m/ribotyper\_inconsistenthits/) ||
-          ($failmsg =~ m/ribotyper\_lowscore/)) {
+    elsif(($failmsg =~ m/R\_nohits/) || 
+          ($failmsg =~ m/R\_BothStrands/) ||
+          ($failmsg =~ m/R\_DuplicateRegion/) ||
+          ($failmsg =~ m/R\_InconsistentHits/) ||
+          ($failmsg =~ m/R\_LowScore/)) {
       return "submitter";
     }
-    elsif(($failmsg =~ m/ribotyper\_lowcoverage/)  || 
-          ($failmsg =~ m/ribotyper\_multiplehits/) || 
-          ($failmsg =~ m/ribotyper\_wrongtaxonomy/)) { 
+    elsif(($failmsg =~ m/R\_LowCoverage/)  || 
+          ($failmsg =~ m/R\_MultipleNits/) || 
+          ($failmsg =~ m/R\_UnacceptableModel/)) { 
       return "indexer";
     }
     else { 
@@ -1203,17 +1206,20 @@ sub determine_fails_to_string {
     if($failmsg eq "-") { # failmsg should not be empty
       die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
     }
-    if($failmsg =~ m/sensor/) { # failmsg should contain at least one sensor error
+    if($failmsg =~ m/S\_/) { # failmsg should contain at least one sensor error
       die "ERROR in $sub_name, pftype: $pftype, but failmsg contains a sensor error: $failmsg"; 
     }
-    if($failmsg !~ m/ribotyper/) { # failmsg should contain at least one ribotyper error
+    if($failmsg !~ m/R\_/) { # failmsg should contain at least one ribotyper error
       die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
     }
 
-    if($failmsg =~ m/ribotyper\_multiplefamilies/) { 
+    if($failmsg =~ m/R\_MultipleFamilies/) { 
       return "submitter"; 
     }
-    elsif($failmsg =~ m/ribotyper\_wrongtaxonomy/) { 
+    elsif($failmsg =~ m/R\_UnacceptableModel/) { 
+      return "indexer"; 
+    }
+    elsif($failmsg =~ m/R\_QuestionableModel/) { 
       return "indexer"; 
     }
     else { 
@@ -1226,29 +1232,29 @@ sub determine_fails_to_string {
     if($failmsg eq "-") { # failmsg should not be empty
       die "ERROR in $sub_name, pftype: $pftype, but failmsg is empty: $failmsg"; 
     }
-    if($failmsg !~ m/sensor/) { # failmsg should contain at least one sensor errors
+    if($failmsg !~ m/S\_/) { # failmsg should contain at least one sensor errors
       die "ERROR in $sub_name, pftype: $pftype, but failmsg contains a sensor error: $failmsg"; 
     }
-    if($failmsg =~ m/ribotyper/) { # failmsg should not contain any ribotyper errors
+    if($failmsg =~ m/R\_/) { # failmsg should not contain any ribotyper errors
       die "ERROR in $sub_name, pftype: $pftype, but failmsg does not contain a ribotyper error: $failmsg"; 
     }
 
     my $is_cultured = opt_Get("-c", $opt_HHR);
-    if($failmsg =~ m/sensor\_misassembly/) { 
+    if($failmsg =~ m/S\_Misassembly/) { 
       return "submitter";
     }
-    if($failmsg eq "sensor_HSPproblem;") { # HSPproblem is only error
+    if($failmsg eq "S_MultipleHits;") { # HSPproblem is only error
       return "indexer";
     }
-    if((($failmsg =~ m/sensor\_lowsimilarity/) || 
-        ($failmsg =~ m/sensor\_no/)            || 
-        ($failmsg =~ m/sensor\_imperfect\_match/)) # either 'lowsimilarity' or 'no' or 'imperfect_match' error
-       && ($failmsg !~ m/sensor\_misassembly/)) { # misassembly error not present
+    if((($failmsg =~ m/S\_LowSimilarity/) || 
+        ($failmsg =~ m/S\_No/)            || 
+        ($failmsg =~ m/S\_LowScore/)) # either 'lowsimilarity' or 'no' or 'imperfect_match' error
+       && ($failmsg !~ m/S\_BothStrands/)) { # misassembly error not present
       if($is_cultured) { 
         return "submitter";
       }
       else { 
-        if($failmsg =~ m/sensor\_HSPproblem/) { 
+        if($failmsg =~ m/S\_MultipleHits/) { 
           return "indexer";
         }
         else { 
@@ -1481,9 +1487,12 @@ sub update_error_count_hash {
   my ($ct_HR, $errstr) = (@_);
 
   if($errstr eq "-") { die "ERROR in $sub_name, no errors in error string"; }
-  
+
   my @err_A = split(";", $errstr);
   foreach my $err (@err_A) { 
+    if($err =~ m/^R\_/) { # ribotyper error, remove sequence specific info, if any
+      $err =~ s/\:.+$//;
+    }
     if(! exists $ct_HR->{$err}) { 
       die "ERROR in $sub_name, unknown error string $err"; 
     }
