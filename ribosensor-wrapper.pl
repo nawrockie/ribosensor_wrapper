@@ -211,28 +211,31 @@ ribo_ValidateExecutableHash(\%execs_H);
 ##############################
 # define and open output files
 ##############################
-my $unsrt_sensor_gpipe_file = $out_root . ".sensor.unsrt.gpipe"; # unsorted 'gpipe' format sensor output
-my $sensor_gpipe_file       = $out_root . ".sensor.gpipe";       # sorted 'gpipe' format sensor output
-my $ribo_gpipe_file         = $out_root . ".ribo.gpipe";         # 'gpipe' format ribotyper output
-my $combined_gpipe_file     = $out_root . ".gpipe";              # 'gpipe' format combined output
-my $passes_sfetch_file      = $out_root . ".pass.sfetch";            # all sequences that passed
+my $unsrt_sensor_indi_file  = $out_root . ".sensor.unsrt.out"; # ribosensor-processed, unsorted sensor output
+my $sensor_indi_file        = $out_root . ".sensor.out";       # ribosensor-processed, sorted 'gpipe' format sensor output
+my $ribo_indi_file          = $out_root . ".ribo.out";         # ribosensor-processed, ribotyper output
+my $combined_out_file       = $out_root . ".out";              # ribosensor-processed, sensor+ribotyper combined output, human readable
+my $combined_gpipe_file     = $out_root . ".gpipe";            # ribosensor-processed, sensor+ribotyper combined output, machine readable with gpipe errors 
+my $passes_sfetch_file      = $out_root . ".pass.sfetch";        # all sequences that passed
 my $passes_seq_file         = $out_root . ".pass.fa";            # all sequences that passed
 
 if(! opt_Get("--keep", \%opt_HH)) { 
-  push(@to_remove_A, $unsrt_sensor_gpipe_file);
+  push(@to_remove_A, $unsrt_sensor_indi_file);
   if(opt_Get("--psave", \%opt_HH)) { 
     push(@to_remove_A, $passes_sfetch_file);
   }
 }
 
-my $unsrt_sensor_gpipe_FH = undef; # output file handle for unsorted sensor gpipe file
-my $sensor_gpipe_FH       = undef; # output file handle for sorted sensor gpipe file
-my $ribo_gpipe_FH         = undef; # output file handle for sorted ribotyper gpipe file
-my $combined_gpipe_FH     = undef; # output file handle for the combined gpipe file
-open($unsrt_sensor_gpipe_FH, ">", $unsrt_sensor_gpipe_file)  || die "ERROR unable to open $unsrt_sensor_gpipe_file for writing";
-open($sensor_gpipe_FH,       ">", $sensor_gpipe_file)        || die "ERROR unable to open $sensor_gpipe_file for writing";
-open($ribo_gpipe_FH,         ">", $ribo_gpipe_file)          || die "ERROR unable to open $ribo_gpipe_file for writing";
-open($combined_gpipe_FH,     ">", $combined_gpipe_file)      || die "ERROR unable to open $combined_gpipe_file for writing";
+my $unsrt_sensor_indi_FH = undef; # output file handle for unsorted sensor gpipe file
+my $sensor_indi_FH       = undef; # output file handle for sorted sensor gpipe file
+my $ribo_indi_FH         = undef; # output file handle for sorted ribotyper gpipe file
+my $combined_out_FH      = undef; # output file handle for the combined output file
+my $combined_gpipe_FH    = undef; # output file handle for the combined gpipe file
+open($unsrt_sensor_indi_FH, ">", $unsrt_sensor_indi_file) || die "ERROR unable to open $unsrt_sensor_indi_file for writing";
+open($sensor_indi_FH,       ">", $sensor_indi_file)       || die "ERROR unable to open $sensor_indi_file for writing";
+open($ribo_indi_FH,         ">", $ribo_indi_file)         || die "ERROR unable to open $ribo_indi_file for writing";
+open($combined_out_FH,      ">", $combined_out_file)      || die "ERROR unable to open $combined_out_file for writing";
+open($combined_gpipe_FH,    ">", $combined_gpipe_file)    || die "ERROR unable to open $combined_gpipe_file for writing";
 
 ###################################################################
 # Step 1: Split up input sequence file into 3 files based on length
@@ -360,11 +363,15 @@ my %herror_ct_HH   = (); # 2D hash of counts of 'human' error types,
                          # 1D key is outcome type, e.g. "RPSF", 
                          # 2D key is human error type, an element from @herror_type_A
                          # value is count
-my @merror_type_A  = (); # array of 'machine' error types, in order they should be output
-my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types, 
-#                         # 1D key is outcome type, e.g. "RPSF", 
-#                         # 2D key is machine error type, an element from @merror_type_A
-#                         # value is count
+my @gerror_type_A  = (); # array of 'gpipe' error types, in order they should be output
+my %gerror_ct_HH   = (); # 2D hash of counts of 'gpipe' error types, 
+                         # 1D key is outcome type, e.g. "RPSF", 
+                         # 2D key is gpipe error type, an element from @gerror_type_A
+                         # value is count
+my @RPSF_ignore_A  = (); # array of human errors to ignore for sequences that pass ribotyper and
+                         # fail sensor (RPSF)
+my @indexer_A      = (); # array of human errors that fail to indexer rather than submitter
+
 @outcome_type_A    = ("RPSP", "RPSF", "RFSP", "RFSF", "*all*");
 @outcome_cat_A     = ("total", "pass", "indexer", "submitter", "unmapped");
 @herror_type_A     = ("CLEAN",
@@ -386,7 +393,8 @@ my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types,
                       "R_DuplicateRegion",
                       "R_InconsistentHits",
                       "R_MultipleHits");
-@merror_type_A     = ("SEQ_HOM_Not16SrRNA",
+@gerror_type_A     = ("CLEAN",
+                      "SEQ_HOM_Not16SrRNA",
                       "SEQ_HOM_16SAnd23SrRNA",
                       "SEQ_HOM_LowSimilarity",
                       "SEQ_HOM_LengthShort",
@@ -399,36 +407,58 @@ my %merror_ct_HH   = (); # 2D hash of counts of 'machine' error types,
                       "SEQ_HOM_LowCoverage",
                       "SEQ_HOM_MultipleHits");
 
+
+@RPSF_ignore_A = ("S_NoHits", 
+                  "S_LowScore",
+                  "S_NoSimilarity",
+                  "S_LowSimilarity");
+
+@indexer_A  = ("R_QuestionableModel", 
+               "R_LowCoverage", 
+               "S_MultipleHits", 
+               "R_MultipleHits");
+
+# create the map of gpipe errors to human errors
+my %gpipe2human_HH = ();
+define_gpipe_to_human_map(\%gpipe2human_HH, \@gerror_type_A, \@herror_type_A);
+
 $start_secs = ribo_OutputProgressPrior("Parsing and combining 16S-sensor and ribotyper output", $progress_w, undef, *STDOUT);
 # parse 16S-sensor file to create gpipe format file
 # first unsorted, then sort it.
-parse_sensor_files($unsrt_sensor_gpipe_FH, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
-close($unsrt_sensor_gpipe_FH);
+parse_sensor_files($unsrt_sensor_indi_FH, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+close($unsrt_sensor_indi_FH);
 
 # sort sensor shortfile
-output_gpipe_headers($sensor_gpipe_FH, "sensor", \%width_H);
-close($sensor_gpipe_FH);
+output_headers_without_fails_to($sensor_indi_FH, \%width_H);
+close($sensor_indi_FH);
 
-$cmd = "sort -n $unsrt_sensor_gpipe_file >> $sensor_gpipe_file";
+$cmd = "sort -n $unsrt_sensor_indi_file >> $sensor_indi_file";
 ribo_RunCommand($cmd, opt_Get("-v", \%opt_HH));
-open($sensor_gpipe_FH, ">>", $sensor_gpipe_file) || die "ERROR, unable to open $sensor_gpipe_file for appending";
-output_gpipe_tail($sensor_gpipe_FH, "sensor", \%opt_HH); 
-close($sensor_gpipe_FH);
+open($sensor_indi_FH, ">>", $sensor_indi_file) || die "ERROR, unable to open $sensor_indi_file for appending";
+output_tail_without_fails_to($sensor_indi_FH, \%opt_HH); 
+close($sensor_indi_FH);
 
 # convert ribotyper output to gpipe 
-output_gpipe_headers($ribo_gpipe_FH, "ribotyper", \%width_H);
-convert_ribo_short_to_gpipe_file($ribo_gpipe_FH, $ribo_shortfile, \@herror_type_A, \%seqidx_H, \%width_H, \%opt_HH);
-output_gpipe_tail($ribo_gpipe_FH, "ribotyper", \%opt_HH); 
-close($ribo_gpipe_FH);
+output_headers_without_fails_to($ribo_indi_FH, \%width_H);
+convert_ribo_short_to_indi_file($ribo_indi_FH, $ribo_shortfile, \@herror_type_A, \%seqidx_H, \%width_H, \%opt_HH);
+output_tail_without_fails_to($ribo_indi_FH, \%opt_HH); 
+close($ribo_indi_FH);
 
 initialize_hash_of_hash_of_counts(\%outcome_ct_HH, \@outcome_type_A, \@outcome_cat_A);
 initialize_hash_of_hash_of_counts(\%herror_ct_HH,  \@outcome_type_A, \@herror_type_A);
+initialize_hash_of_hash_of_counts(\%gerror_ct_HH,  \@outcome_type_A, \@gerror_type_A);
 
-# combine sensor and ribotyper gpipe to get combined gpipe file
-output_gpipe_headers($combined_gpipe_FH, "combined", \%width_H);
-combine_gpipe_files($combined_gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, 
-                    \%outcome_ct_HH, \%herror_ct_HH, \%width_H, \%opt_HH);
-output_gpipe_tail($combined_gpipe_FH, "combined", \%opt_HH); # 1: output is for ribo, not ribotyper
+# combine sensor and ribotyper indi output files to get combined output file
+output_headers_with_fails_to   ($combined_out_FH,   \%width_H);
+output_headers_without_fails_to($combined_gpipe_FH, \%width_H);
+combine_gpipe_files($combined_out_FH, $combined_gpipe_FH, $sensor_indi_file, $ribo_indi_file, 
+                    \@gerror_type_A, \%gpipe2human_HH, \%outcome_ct_HH, 
+                    \%herror_ct_HH, \%gerror_ct_HH, 
+                    (opt_Get("-c", \%opt_HH) ? undef : \@RPSF_ignore_A), # only ignore some errors if -c not used
+                    \@indexer_A, \%width_H, \%opt_HH);
+output_tail_with_fails_to   ($combined_out_FH,   \%opt_HH); 
+output_tail_without_fails_to($combined_gpipe_FH, \%opt_HH); 
+close($combined_out_FH);
 close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
@@ -437,16 +467,18 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 my $nseq_passed    = 0; # number of sequences 
 my $nseq_revcomped = 0; # number of sequences reverse complemented
 if(opt_Get("--psave", \%opt_HH)) { 
-  ($nseq_passed, $nseq_revcomped) = fetch_seqs_given_gpipe_file($execs_H{"esl-sfetch"}, $seq_file, $combined_gpipe_file, "pass", 6, 1, $passes_sfetch_file, $passes_seq_file, \%seqlen_H, \%opt_HH);
+  ($nseq_passed, $nseq_revcomped) = fetch_seqs_given_gpipe_file($execs_H{"esl-sfetch"}, $seq_file, $combined_out_file, "pass", 6, 1, $passes_sfetch_file, $passes_seq_file, \%seqlen_H, \%opt_HH);
 }
 
 output_outcome_counts(*STDOUT, \%outcome_ct_HH);
-output_error_counts(*STDOUT, "Error counts:", $tot_nseq, \%{$herror_ct_HH{"*all*"}}, \@herror_type_A);
+output_error_counts(*STDOUT, "Per-program error counts:", $tot_nseq, \%{$herror_ct_HH{"*all*"}}, \@herror_type_A);
+output_error_counts(*STDOUT, "GPIPE error counts:", $tot_nseq, \%{$gerror_ct_HH{"*all*"}}, \@gerror_type_A);
 
 $total_seconds += ribo_SecondsSinceEpoch();
 output_timing_statistics(*STDOUT, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $total_seconds, \%opt_HH);
 
-printf("#\n# Output saved to file $combined_gpipe_file\n");
+printf("#\n# Human readable error-based output saved to file $combined_out_file");
+printf("#\n# GPIPE error-based output saved to file $combined_gpipe_file\n");
 if((opt_Get("--psave", \%opt_HH)) && ($nseq_passed > 0)) { 
   printf("#\n# The $nseq_passed sequences that passed (with $nseq_revcomped minus strand sequences\n# reverse complemented) saved to file $passes_seq_file\n");
 }
@@ -623,7 +655,7 @@ sub parse_sensor_files {
           }
         }
         if($failmsg eq "") { $failmsg = "-"; }
-        output_gpipe_line($FH, $seqidx_HR->{$seqid}, $seqid, "?", $strand, $passfail, $failmsg, "sensor", $width_HR, $opt_HHR);
+        output_gpipe_line_without_fails_to($FH, $seqidx_HR->{$seqid}, $seqid, "?", $strand, $passfail, $failmsg, $width_HR, $opt_HHR);
       }
     }
   }
@@ -669,7 +701,7 @@ sub determine_coverage_threshold {
 }
 
 #################################################################
-# Subroutine : output_gpipe_headers()
+# Subroutine : output_headers_without_fails_to()
 # Incept:      EPN, Sat May 13 05:51:17 2017
 #
 # Purpose:     Output column headers to a gpipe format output
@@ -677,7 +709,7 @@ sub determine_coverage_threshold {
 #              
 # Arguments: 
 #   $FH:        file handle to output to
-#   $type:      'sensor', 'ribotyper', or 'combined'
+#   $type:      'sensor', 'ribotyper', 'hcombined', or 'mcombined'
 #   $width_HR:  ref to hash, keys include "model" and "target", 
 #               value is width (maximum length) of any target/model
 #
@@ -686,50 +718,77 @@ sub determine_coverage_threshold {
 # Dies:        Never.
 #
 ################################################################# 
-sub output_gpipe_headers { 
-  my $nargs_expected = 3;
-  my $sub_name = "output_gpipe_headers";
+sub output_headers_without_fails_to { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_headers_without_fails_to";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($FH, $type, $width_HR) = (@_);
+  my ($FH, $width_HR) = (@_);
 
   my $index_dash_str  = "#" . ribo_GetMonoCharacterString($width_HR->{"index"}-1, "-");
   my $target_dash_str = ribo_GetMonoCharacterString($width_HR->{"target"}, "-");
   my $tax_dash_str    = ribo_GetMonoCharacterString($width_HR->{"taxonomy"}, "-");
   my $strand_dash_str = ribo_GetMonoCharacterString($width_HR->{"strand"}, "-");
 
-  if(($type eq "sensor") || ($type eq "ribotyper")) { 
-    printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %s\n", 
-                $width_HR->{"index"},    "#idx", 
-                $width_HR->{"target"},   "sequence", 
-                $width_HR->{"taxonomy"}, "taxonomy",
-                $width_HR->{"strand"},   "strand", 
-                "p/f", "error(s)");
-    printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "--------");
-  }
-  elsif($type eq "combined") { 
-    printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
-                $width_HR->{"index"},    "#idx", 
-                $width_HR->{"target"},   "sequence", 
-                $width_HR->{"taxonomy"}, "taxonomy",
-                $width_HR->{"strand"},   "strand", 
-                "type", "failsto", "error(s)");
-    printf $FH ("%s  %s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "---------", "--------");
-  }
+  printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %s\n", 
+              $width_HR->{"index"},    "#idx", 
+              $width_HR->{"target"},   "sequence", 
+              $width_HR->{"taxonomy"}, "taxonomy",
+              $width_HR->{"strand"},   "strand", 
+              "p/f", "error(s)");
+  printf $FH ("%s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "--------");
 
   return;
 }
 
 #################################################################
-# Subroutine : output_gpipe_tail()
+# Subroutine : output_headers_with_fails_to()
+# Incept:      EPN, Mon May 22 14:51:15 2017
+#
+# Purpose:     Output combined output file headers
+#              
+# Arguments: 
+#   $FH:        file handle to output to
+#   $width_HR:  ref to hash, keys include "model" and "target", 
+#               value is width (maximum length) of any target/model
+#
+# Returns:     Nothing.
+# 
+# Dies:        Never.
+#
+################################################################# 
+sub output_headers_with_fails_to { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_headers_without_fails_to";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $width_HR) = (@_);
+
+  my $index_dash_str  = "#" . ribo_GetMonoCharacterString($width_HR->{"index"}-1, "-");
+  my $target_dash_str = ribo_GetMonoCharacterString($width_HR->{"target"}, "-");
+  my $tax_dash_str    = ribo_GetMonoCharacterString($width_HR->{"taxonomy"}, "-");
+  my $strand_dash_str = ribo_GetMonoCharacterString($width_HR->{"strand"}, "-");
+
+  printf $FH ("%-*s  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
+              $width_HR->{"index"},    "#idx", 
+              $width_HR->{"target"},   "sequence", 
+              $width_HR->{"taxonomy"}, "taxonomy",
+              $width_HR->{"strand"},   "strand", 
+              "type", "failsto", "error(s)");
+  printf $FH ("%s  %s  %s  %s  %s  %s  %s\n", $index_dash_str, $target_dash_str, $tax_dash_str, $strand_dash_str, "----", "---------", "--------");
+
+  return;
+}
+
+#################################################################
+# Subroutine : output_tail_without_fails_to()
 # Incept:      EPN, Sat May 13 06:17:57 2017
 #
-# Purpose:     Output explanation of columns to gpipe format 
-#              file for either sensor or ribotyper.
+# Purpose:     Output explanation of columns for individual
+#              output file.
 #              
 # Arguments: 
 #   $FH:         file handle to output to
-#   $type:       'sensor', 'ribotyper', or 'combined'
 #   $opt_HHR:    reference to 2D hash of cmdline options
 #
 # Returns:     Nothing.
@@ -737,35 +796,64 @@ sub output_gpipe_headers {
 # Dies:        Never.
 #
 ################################################################# 
-sub output_gpipe_tail { 
-  my $nargs_expected = 3;
-  my $sub_name = "output_gpipe_tail";
+sub output_tail_without_fails_to { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_tail_without_fails_to";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
-  my ($FH, $type, $opt_HHR) = (@_);
+  my ($FH, $opt_HHR) = (@_);
 
   printf $FH ("#\n");
   printf $FH ("# Explanation of columns:\n");
   printf $FH ("#\n");
   printf $FH ("# Column 1 [idx]:      index of sequence in input sequence file\n");
   printf $FH ("# Column 2 [target]:   name of target sequence\n");
-  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence%s\n", ($type eq "sensor") ? "(always '-' because 16S-sensor does not infer taxonomy)" : "");
+  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence\n");
   printf $FH ("# Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit\n");
-  if(($type eq "sensor") || ($type eq "ribotyper")) { 
-    printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
-    printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
-  }
-  elsif($type eq "combined") { 
-    printf $FH ("# Column 5 [type]:     \"R<1>S<2>\" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor\n");
-    printf $FH ("# Column 6 [failsto]:  'PASS' if sequence passes\n");
-    printf $FH ("#                      'indexer'   to fail to indexer ('indexer*' if interesting situation)\n");
-    printf $FH ("#                      'submitter' to fail to submitter\n");
-    printf $FH ("#                      '?' if situation is not covered in the code\n");
-    printf $FH ("# Column 7 [error(s)]: reason(s) for failure (see 00README.txt)\n");
-  }
-  else { 
-    die "ERROR in $sub_name, unexpected type: $type (should be 'sensor', 'ribotyper', or 'combined'";
-  }
+  printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
+  printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
+  
+  output_errors_explanation($FH, $opt_HHR);
+
+  return;
+}
+
+#################################################################
+# Subroutine : output_tail_with_fails_to()
+# Incept:      EPN, Mon May 22 14:52:27 2017
+#
+# Purpose:     Output explanation of columns for combined
+#              output file.
+#              
+# Arguments: 
+#   $FH:         file handle to output to
+#   $opt_HHR:    reference to 2D hash of cmdline options
+#
+# Returns:     Nothing.
+# 
+# Dies:        Never.
+#
+################################################################# 
+sub output_tail_with_fails_to { 
+  my $nargs_expected = 2;
+  my $sub_name = "output_tail_without_fails_to";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($FH, $opt_HHR) = (@_);
+
+  printf $FH ("#\n");
+  printf $FH ("# Explanation of columns:\n");
+  printf $FH ("#\n");
+  printf $FH ("# Column 1 [idx]:      index of sequence in input sequence file\n");
+  printf $FH ("# Column 2 [target]:   name of target sequence\n");
+  printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence\n");
+  printf $FH ("# Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit\n");
+  printf $FH ("# Column 5 [type]:     \"R<1>S<2>\" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor\n");
+  printf $FH ("# Column 6 [failsto]:  'pass' if sequence passes\n");
+  printf $FH ("#                      'indexer'   to fail to indexer\n");
+  printf $FH ("#                      'submitter' to fail to submitter\n");
+  printf $FH ("#                      '?' if situation is not covered in the code\n");
+  printf $FH ("# Column 7 [error(s)]: reason(s) for failure (see 00README.txt)\n");
   
   output_errors_explanation($FH, $opt_HHR);
 
@@ -807,7 +895,7 @@ sub output_errors_explanation {
 }
 
 #################################################################
-# Subroutine : convert_ribo_short_to_gpipe_file()
+# Subroutine : convert_ribo_short_to_indi_file()
 # Incept:      EPN, Mon May 15 05:35:28 2017
 #
 # Purpose:     Convert a ribotyper short format output file 
@@ -826,9 +914,9 @@ sub output_errors_explanation {
 # Dies:        if short file is in unexpected format
 #
 ################################################################# 
-sub convert_ribo_short_to_gpipe_file { 
+sub convert_ribo_short_to_indi_file { 
   my $nargs_expected = 6;
-  my $sub_name = "convert_ribo_short_to_gpipe_file";
+  my $sub_name = "convert_ribo_short_to_indi_file";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
   my ($FH, $shortfile, $herror_type_AR, $seqidx_HR, $width_HR, $opt_HHR) = (@_);
 
@@ -877,12 +965,11 @@ sub convert_ribo_short_to_gpipe_file {
         if($passfail ne "PASS") { 
           die "ERROR in $sub_name, sequence $seqid has no unexpected features, but does not PASS:\n$line\n";
         }
-        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, "-", "ribotyper", $width_HR, $opt_HHR);
+        output_gpipe_line_without_fails_to($FH, $idx, $seqid, $class, $strand, $passfail, "-", $width_HR, $opt_HHR);
       }
       else { # ufeature_str ne "-", prepend an "R_" to each unexpected feature
         @ufeature_A = split(";", $ufeature_str);
         if(scalar(@ufeature_A) > 0) { 
-          $passfail = "FAIL";
           foreach $ufeature (@ufeature_A) { 
             $ufeature =~ s/^\*//; # remove leading '*' if it exists
             $ufeature_stripped = $ufeature; 
@@ -895,6 +982,7 @@ sub convert_ribo_short_to_gpipe_file {
             }
             if($found_match) { 
               $failmsg .= "R_" . $ufeature . ";";
+              $passfail = "FAIL";
             }
           }
         }
@@ -904,7 +992,7 @@ sub convert_ribo_short_to_gpipe_file {
           }
           $failmsg = "-"; 
         }
-        output_gpipe_line($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, "ribotyper", $width_HR, $opt_HHR);
+        output_gpipe_line_without_fails_to($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR, $opt_HHR);
       } # end of else entered if $ufeature_str ne "-"
     }
  }   
@@ -912,7 +1000,7 @@ sub convert_ribo_short_to_gpipe_file {
 }
   
 #################################################################
-# Subroutine : output_gpipe_line()
+# Subroutine : output_gpipe_line_with_fails_to()
 # Incept:      EPN, Mon May 15 05:46:28 2017
 #
 # Purpose:     Output a single line to a gpipe file file handle.
@@ -925,45 +1013,72 @@ sub convert_ribo_short_to_gpipe_file {
 #   $strand:      strand value
 #   $passfail:    "PASS" or "FAIL"
 #   $failmsg:     failure message
-#   $type:        "sensor", "ribotyper" or "combined"
+#   $ignore_AR:   ref to array of error messages to ignore when determining
+#                 pass/fail (can be undefined to not ignore any)
+#   $indexer_AR:  ref to array of error messages that fail to indexer
 #   $width_HR:    ref to hash with max lengths of sequence index and target
 #   $opt_HHR:     ref to 2D hash of cmdline options
 #
-# Returns:     "fails_to" string, only if $type eq "combined" else ""
+# Returns:     nothing
 #
 # Dies:        never
 #
 ################################################################# 
-sub output_gpipe_line { 
-  my $nargs_expected = 10;
-  my $sub_name = "output_gpipe_line";
+sub output_gpipe_line_with_fails_to { 
+  my $nargs_expected = 11;
+  my $sub_name = "output_gpipe_line_with_fails_to";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $type, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $ignore_AR, $indexer_AR, $width_HR, $opt_HHR) = (@_);
 
   my $failsto = "";
 
-  if(($type eq "sensor") || ($type eq "ribotyper")) { 
-    printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %s\n", 
-                $width_HR->{"index"},    $idx, 
-                $width_HR->{"target"},   $seqid, 
-                $width_HR->{"taxonomy"}, $class, 
-                $width_HR->{"strand"},   $strand, 
-                $passfail, $failmsg);
-  }
-  elsif($type eq "combined") { 
-    $failsto = determine_fails_to_string_May15_meeting($passfail, $failmsg, $opt_HHR);
-    printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
-                $width_HR->{"index"},    $idx, 
-                $width_HR->{"target"},   $seqid, 
-                $width_HR->{"taxonomy"}, $class, 
-                $width_HR->{"strand"},   $strand, 
-                $passfail, $failsto, $failmsg);
-  }
-  else { 
-    die "ERROR in $sub_name, unexpected type: $type (should be 'sensor', 'ribotyper', or 'combined'";
-  }
+  $failsto = determine_fails_to_string($failmsg, $ignore_AR, $indexer_AR, $opt_HHR);
+  printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
+              $width_HR->{"index"},    $idx, 
+              $width_HR->{"target"},   $seqid, 
+              $width_HR->{"taxonomy"}, $class, 
+              $width_HR->{"strand"},   $strand, 
+              $passfail, $failsto, $failmsg);
 
   return $failsto;
+}
+
+#################################################################
+# Subroutine : output_gpipe_line_without_fails_to()
+# Incept:      EPN, Mon May 22 13:55:26 2017
+#
+# Purpose:     Output a single line to a gpipe file file handle.
+#
+# Arguments: 
+#   $FH:          filehandle to output to
+#   $idx:         sequence index
+#   $seqid:       sequence identifier
+#   $class:       classification value
+#   $strand:      strand value
+#   $passfail:    "PASS" or "FAIL"
+#   $failmsg:     failure message
+#   $width_HR:    ref to hash with max lengths of sequence index and target
+#   $opt_HHR:     ref to 2D hash of cmdline options
+#
+# Returns:     "fails_to" string, only if $type eq "hcombined" else ""
+#
+# Dies:        never
+#
+################################################################# 
+sub output_gpipe_line_without_fails_to { 
+  my $nargs_expected = 9;
+  my $sub_name = "output_gpipe_line_without_fails_to";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR, $opt_HHR) = (@_);
+
+  printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %s\n", 
+              $width_HR->{"index"},    $idx, 
+              $width_HR->{"target"},   $seqid, 
+              $width_HR->{"taxonomy"}, $class, 
+              $width_HR->{"strand"},   $strand, 
+              $passfail, $failmsg);
+
+  return;
 }
 
 #################################################################
@@ -974,9 +1089,13 @@ sub output_gpipe_line {
 #              sensor and ribotyper into a single file.
 #
 # Arguments: 
-#   $FH:                filehandle to output to
+#   $out_FH:            filehandle to output 'human' readable file to 
+#   $gpipe_FH:          filehandle to output gpipe file to 
 #   $sensor_gpipe_file: name of sensor gpipe file to read
 #   $ribo_gpipe_file:   name of ribotyper gpipe file to read
+#   $gerror_type_AR:    ref to array of gpipe errors
+#   $g2h_HHR:           ref to 2D hash, key1: gpipe error, key2: human error,
+#                       value: '1' if key1 is triggered by key2.
 #   $outcome_ct_HHR:    ref to 2D hash of counts of outcomes,
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
 #                       2D key: "total", "pass", "indexer", "submitter", "unmapped"
@@ -985,6 +1104,12 @@ sub output_gpipe_line {
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
 #                       2D key: name of human error (e.g. 'R_NoHits')
 #                       values: counts of sequences
+#   $gerror_ct_HHR      ref to 2D hash of counts of gpipe errors
+#                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
+#                       2D key: name of gpipe error (e.g. 'SEQ_HOM_Not16SrRNA')
+#                       values: counts of sequences
+#   $RPSF_ignore_AR:    ref to array of errors to ignore if RPSF (ribotyper pass, sensor fail)
+#   $indexer_AR:        ref to array of errors that fail to indexers (instead of submitters)
 #   $width_HR:          ref to hash with max lengths of sequence index, target, and classifications
 #   $opt_HHR:           ref to 2D hash of cmdline options
 # 
@@ -994,10 +1119,10 @@ sub output_gpipe_line {
 #
 ################################################################# 
 sub combine_gpipe_files { 
-  my $nargs_expected = 7;
+  my $nargs_expected = 13;
   my $sub_name = "combine_gpipe_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $sensor_gpipe_file, $ribo_gpipe_file, $outcome_ct_HHR, $herror_ct_HHR, $width_HR, $opt_HHR) = (@_);
+  my ($out_FH, $gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, $gerror_type_AR, $g2h_HHR, $outcome_ct_HHR, $herror_ct_HHR, $gerror_ct_HHR, $RPSF_ignore_AR, $indexer_AR, $width_HR, $opt_HHR) = (@_);
 
   my @sel_A    = ();    # array of elements on a sensor line
   my @rel_A    = ();    # array of elements on a ribotyper line
@@ -1008,15 +1133,18 @@ sub combine_gpipe_files {
   my ($sclass,    $rclass,    $class);    # a sensor, ribotyper, and combined classification string
   my ($sstrand,   $rstrand,   $strand);   # a sensor, ribotyper, and combined strand
   my ($spassfail, $rpassfail, $passfail); # a sensor, ribotyper, and combined pass/fail string
-  my ($sfailmsg,  $rfailmsg,  $failmsg);  # a sensor, ribotyper, and combined failure message
-  my $i;                # a counter
-  my $slidx    = 0;     # line number in sensor file we're currently on
-  my $rlidx    = 0;     # line number in ribotyper file we're currently on
-  my $keep_going = 1;     # flag to keep reading the input files, set to '0' to stop
-  my $have_sline = undef; # '1' if we have a valid sensor line
-  my $have_rline = undef; # '1' if we have a valid ribotyper line
-  my $out_lidx = 0;       # number of lines output
-  my $failsto_str = undef; # string of where sequence fails to ('indexer' or 'submitter') or 'pass' or 'unmapped'
+  my ($sfailmsg,  $rfailmsg,  $failmsg);  # a sensor, ribotyper, and combined output failure message
+  my $doctored_failmsg;     # combined failmsg with errors to ignore removed
+  my $gpipe_failmsg;        # doctored_failmsg converted to gpipe errors
+  my $i;                    # a counter
+  my $slidx    = 0;         # line number in sensor file we're currently on
+  my $rlidx    = 0;         # line number in ribotyper file we're currently on
+  my $keep_going = 1;       # flag to keep reading the input files, set to '0' to stop
+  my $have_sline = undef;   # '1' if we have a valid sensor line
+  my $have_rline = undef;   # '1' if we have a valid ribotyper line
+  my $out_lidx = 0;         # number of lines output
+  my $failsto_str  = undef; # string of where sequence fails to ('indexer' or 'submitter') or 'pass' or 'unmapped'
+  my $error = undef;        # a single error
 
   open(SIN, $sensor_gpipe_file) || die "ERROR unable to open $sensor_gpipe_file for reading in $sub_name"; 
   open(RIN, $ribo_gpipe_file)   || die "ERROR unable to open $ribo_gpipe_file for reading in $sub_name"; 
@@ -1086,7 +1214,21 @@ sub combine_gpipe_files {
       elsif($sfailmsg eq "-" && $rfailmsg ne "-") { $failmsg = $rfailmsg; }
       elsif($sfailmsg ne "-" && $rfailmsg ne "-") { $failmsg = $sfailmsg . $rfailmsg; }
 
-      $failsto_str = output_gpipe_line($FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, "combined", $width_HR, $opt_HHR); # 1: combined file
+      # look for special cases: if passfail is "RPSF" then we ignore S_NoHits, S_NoSimilarity, S_LowSimilarity, and S_LowScore
+      $doctored_failmsg = $failmsg;
+      if($passfail eq "RPSF") { 
+        foreach $error (@{$RPSF_ignore_AR}) { 
+          $doctored_failmsg =~ s/$error\;//;
+        }
+        if($doctored_failmsg eq "") { $doctored_failmsg = "-"; }
+      }
+      $gpipe_failmsg = human_to_gpipe_fail_message($doctored_failmsg, $g2h_HHR, $gerror_type_AR);
+
+      $failsto_str = output_gpipe_line_with_fails_to($out_FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, 
+                                                     ($passfail eq "RPSF") ? $RPSF_ignore_AR : undef, # only ignore certain errors if RPSF
+                                                     $indexer_AR, $width_HR, $opt_HHR); 
+      output_gpipe_line_without_fails_to($gpipe_FH, $sidx, $sseqid, $rclass, $strand, $passfail, $gpipe_failmsg, $width_HR, $opt_HHR); 
+
       $out_lidx++;
       # update counts of outcomes 
       $outcome_ct_HHR->{"*all*"}{"total"}++;
@@ -1097,6 +1239,8 @@ sub combine_gpipe_files {
       # update counts of errors
       update_error_count_hash(\%{$herror_ct_HHR->{"*all*"}},   ($failmsg eq "-") ? "CLEAN" : $failmsg);
       update_error_count_hash(\%{$herror_ct_HHR->{$passfail}}, ($failmsg eq "-") ? "CLEAN" : $failmsg);
+      update_error_count_hash(\%{$gerror_ct_HHR->{"*all*"}},   ($gpipe_failmsg eq "-") ? "CLEAN" : $gpipe_failmsg);
+      update_error_count_hash(\%{$gerror_ct_HHR->{$passfail}}, ($gpipe_failmsg eq "-") ? "CLEAN" : $gpipe_failmsg);
 
       # get new lines
       $sline = <SIN>;
@@ -1123,7 +1267,66 @@ sub combine_gpipe_files {
   return;
 }
 
-  
+#################################################################
+# Subroutine : determine_fails_to_string()
+# Incept:      EPN, Mon May 15 10:42:52 2017
+#
+# Purpose:     Based on the human gpipe errors, determine if 
+#              we fail to indexer or submitter. If there are
+#              any indexer errors, then we fail to indexer.
+
+#              Input is a string that includes all human gpipe errors separated
+#              by semi-colons, determine if this sequence either:
+#              1) passes             (return "pass")
+#              2) fails to indexer   (return "indexer")
+#              3) fails to submitter (return "submitter")
+#             
+# Arguments: 
+#   $failmsg:     all human readable errors separated by ";"
+#   $ignore_AR:   ref to array of errors to ignore 
+#                 when determining pass/fail
+#   $indexer_AR:  ref to array of errors that fail to submitter
+#   $opt_HHR:     ref to 2D hash of cmdline options
+#
+# Returns:     void
+#
+# Dies:        never
+#
+################################################################# 
+sub determine_fails_to_string { 
+  my $nargs_expected = 4;
+  my $sub_name = "determine_fails_to_string";
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+  my ($failmsg, $ignore_AR, $indexer_AR, $opt_HHR) = (@_);
+
+  my $doctored_failmsg = $failmsg;
+  my $to_ignore     = undef;
+  my $indexer_error = undef;  # an indexer error
+
+  # take care of the easy part
+  if($failmsg eq "-") { 
+    return "pass";
+  }
+
+  if(defined $ignore_AR) { 
+    foreach $to_ignore (@{$ignore_AR}) { 
+      $doctored_failmsg =~ s/$to_ignore\;//;
+    }
+  }
+  if($doctored_failmsg eq "") { # we removed all errors
+    return "pass";
+  }
+  else { 
+    foreach $indexer_error (@{$indexer_AR}) { 
+      if($doctored_failmsg =~ m/$indexer_error\;/) { 
+        return "indexer";
+      }
+    }
+  }
+  # if we get here, there are no indexer errors
+  return "submitter";
+}
+
 #################################################################
 # Subroutine : determine_fails_to_string_May15_meeting()
 # Incept:      EPN, Mon May 15 10:42:52 2017
@@ -1414,7 +1617,7 @@ sub output_error_counts {
                   $width_H{"fraction"}, ribo_GetMonoCharacterString($width_H{"fraction"}, "-"));
 
   foreach $error (@{$key_AR}) { 
-    if(($ct_HR->{$error} > 0) || ($error eq "CLEAN_(zero_errors)")) { 
+    if(($ct_HR->{$error} > 0) || ($error eq "CLEAN")) { 
       printf $FH ("  %-*s  %*d  %*.5f\n", 
                       $width_H{"error"},    $error,
                       $width_H{"seqs"},     $ct_HR->{$error},
@@ -1759,10 +1962,11 @@ sub determine_strand_given_gpipe_strand {
   my $nargs_expected = 2;
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
+  my ($strand, $type) = (@_);
+
   my $rstrand = undef; # strand predicted by ribotyper
   my $sstrand = undef; # strand predicted by sensor
 
-  my ($strand, $type) = (@_);
 
   if(($strand eq "plus")   || 
      ($strand eq "minus")  || 
@@ -1791,3 +1995,152 @@ sub determine_strand_given_gpipe_strand {
 
   return; # never reached
 }
+
+#################################################################
+# Subroutine: define_gpipe_to_human_map()
+# Incept:     EPN, Mon May 22 10:28:37 2017
+#
+# Purpose:    Define the hard-coded mapping between machine and human errors.
+#
+# Arguments:
+#   $m2h_HHR:    ref to 2D hash, key1: machine error, key2: human error,
+#                value: '1' if key1 is triggered by key2.
+#   $m_AR:       ref to array of machine errors
+#   $h_AR:       ref to array of human errors
+#
+# Returns:  Nothing.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub define_gpipe_to_human_map { 
+  my $sub_name = "define_gpipe_to_human_map()";
+  my $nargs_expected = 3;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($m2h_HHR, $m_AR, $h_AR) = (@_);
+
+  my ($gerror, $herror);
+
+  # initialize the empty map
+  foreach $gerror (@{$m_AR}) { 
+    %{$m2h_HHR->{$gerror}} = ();
+    foreach $herror (@{$h_AR}) { 
+      $m2h_HHR->{$gerror}{$herror} = 0;
+    }
+  }
+
+  # now fill in the map
+  #1.  SEQ_HOM_Not16SrRNA       submitter   S_NoHits(C), R_NoHits
+  #2.  SEQ_HOM_16SAnd23SrRNA    submitter   R_MultipleFamilies^
+  #3.  SEQ_HOM_LowSimilarity    submitter   S_NoSimilarity(C), S_LowSimilarity(C), S_LowScore(C), R_LowScore
+  #4.  SEQ_HOM_LengthShort      submitter   S_TooShort(C)^,R_TooShort
+  #5.  SEQ_HOM_LengthLong       submitter   S_TooLong(C)^,R_TooLong
+  #6.  SEQ_HOM_MisAsBothStrands submitter   S_BothStrands, R_BothStrands^
+  #7.  SEQ_HOM_MisAsHitOrder    submitter   R_InconsistentHits^ (not yet looked for by sensor)
+  #8.  SEQ_HOM_MisAsDupRegion   submitter   R_DuplicateRegion^  (not yet looked for by sensor)
+  #9.  SEQ_HOM_TaxNotArcBacChl  submitter   R_UnacceptableModel
+  #10. SEQ_HOM_TaxChloroplast   indexer     R_QuestionableModel
+  #11. SEQ_HOM_LowCoverage      indexer     R_LowCoverage^
+  #12. SEQ_HOM_MultipleHits     indexer     S_MultipleHits, R_MultipleHits^
+
+  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"S_NoHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"R_NoHits"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_16SAnd23SrRNA"}{"R_MultipleFamilies"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_NoSimilarity"}  = 1;
+  $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_LowSimilarity"} = 1;
+  $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_LowScore"}      = 1;
+  $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"R_LowScore"}      = 1;
+
+  $m2h_HHR->{"SEQ_HOM_LengthShort"}{"S_TooShort"} = 1;
+  $m2h_HHR->{"SEQ_HOM_LengthShort"}{"R_TooShort"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_LengthLong"}{"S_TooLong"} = 1;
+  $m2h_HHR->{"SEQ_HOM_LengthLong"}{"R_TooLong"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_MisAsBothStrands"}{"S_BothStrands"} = 1;
+  $m2h_HHR->{"SEQ_HOM_MisAsBothStrands"}{"R_BothStrands"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_MisAsHitOrder"}{"R_InconsistentHits"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChl"}{"R_UnacceptableModel"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_TaxChloroplast"}{"R_QuestionableModel"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_LowCoverage"}{"R_LowCoverage"} = 1; 
+
+  $m2h_HHR->{"SEQ_HOM_MultipleHits"}{"S_MultipleHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_MultipleHits"}{"R_MultipleHits"} = 1;
+
+  return;
+}
+
+#################################################################
+# Subroutine: human_to_gpipe_fail_message()
+# Incept:     EPN, Mon May 22 10:46:43 2017
+#
+# Purpose:    Given an human fail message, convert it to a 'machine' one.
+#
+# Arguments:
+#   $h_failmsg:  the human readable fail message
+#   $g2h_HHR:    ref to 2D hash, key1: gpipe error, key2: human error,
+#                value: '1' if key1 is triggered by key2.
+#   $g_AR:       ref to array of gpipe errors, in order we want them
+#                output
+#
+# Returns:  The machine fail message.
+# 
+# Dies:     Never.
+#
+#################################################################
+sub human_to_gpipe_fail_message { 
+  my $sub_name = "human_to_gpipe_fail_message()";
+  my $nargs_expected = 3;
+  if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
+
+  my ($h_failmsg, $g2h_HHR, $g_AR) = (@_);
+
+  my $gerr    = undef; # a gpipe error
+  my $herr    = undef; # a human error
+  my $i       = 0;     # counter over gpipe errors
+  my $j       = 0;     # counter over human errors
+  my @herr_A  = ();    # array of human errors
+  my $n_herr  = 0;     # size of @herr_A
+  my $n_gerr  = 0;     # size of @{$g_AR}
+  my $ret_str = "";
+
+  $n_gerr = scalar(@{$g_AR});
+  if($h_failmsg eq "-") { 
+    return "-";
+  }
+  else { 
+    @herr_A = split(";", $h_failmsg);
+    $n_herr = scalar(@herr_A);
+    # remove sequence specific information
+    for($j = 0; $j < $n_herr; $j++) { 
+      if($herr_A[$j] =~ m/^R\_/) { # ribotyper error, remove sequence specific info, if any
+        $herr_A[$j] =~ s/\:.+$//;
+      }
+    }
+    
+    for($i = 0; $i < $n_gerr; $i++) { 
+      $gerr = $g_AR->[$i];
+      for($j = 0; $j < $n_herr; $j++) { 
+        $herr = $herr_A[$j];
+        if(! exists ($g2h_HHR->{$gerr}{$herr})) { 
+          die "ERROR in $sub_name, no map entry for machine error: $gerr and human error: $herr"; 
+        }
+        if($g2h_HHR->{$gerr}{$herr} == 1) { 
+          $ret_str .= $gerr . ";";
+          $j = $n_herr; # breaks loop because we only want to print each GPIPE error once
+        }
+      }
+    }
+    return $ret_str;
+  }
+  
+  return ""; # not reached
+}
+
