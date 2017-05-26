@@ -107,8 +107,7 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.01";
-my $version_str   = "0p01";
+my $version       = "0.02";
 my $releasedate   = "May 2017";
 my $package_name  = "ribosensor";
 
