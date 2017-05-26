@@ -107,7 +107,7 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.03";
+my $version       = "0.04";
 my $releasedate   = "May 2017";
 my $package_name  = "ribosensor";
 
@@ -303,7 +303,8 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 # It's important we run ribotyper only once on full file so that E-values are accurate. 
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
-my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $keep_opt        = (opt_Get("--keep", \%opt_HH)) ? "--keep" : "";
+my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
 if(! opt_Get("--skipsearch", \%opt_HH)) { 
@@ -2071,6 +2072,8 @@ sub define_gpipe_to_human_map {
   $m2h_HHR->{"SEQ_HOM_MisAsBothStrands"}{"R_BothStrands"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_MisAsHitOrder"}{"R_InconsistentHits"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_MisAsDupRegion"}{"R_DuplicateRegion"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChl"}{"R_UnacceptableModel"} = 1;
 
