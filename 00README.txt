@@ -1,5 +1,3 @@
-EPN, Thu May 25 15:33:09 2017
-
 Ribosensor v0.01 README
 
 Organization of this file:
@@ -28,7 +26,7 @@ Current location of code and other relevant files:
 ##############################################################################
 SETTING UP ENVIRONMENT VARIABLES
 
-Before you can run ribosensor-wrapper.pl you will need to update some
+Before you can run ribosensor.pl you will need to update some
 of your environment variables. To do this, add the following seven
 lines to either your .bashrc file (if you use bash shell) or .cshrc
 file (if you use C shell or tcsh). The .bashrc or .cshrc file will be
@@ -38,7 +36,7 @@ it returns '/bin/csh' or '/bin/tcsh' then update your .cshrc file.
 
 The 7 lines to add to your .bashrc file:
 -----------
-export RIBOSENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/ribosensor-wrapper"
+export RIBOSENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 export EPNOPTDIR="/panfs/pan1/dnaorg/ssudetection/code/epn-options"
 export RIBODIR="/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 export SENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
@@ -49,7 +47,7 @@ export BLASTDB="$SENSORDIR:$BLASTDB"
 
 The 7 lines to add to your .cshrc file:
 -----------
-setenv RIBOSENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/ribosensor-wrapper"
+setenv RIBOSENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 setenv RIBODIR "/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 setenv SENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
 setenv EPNOPTDIR "/panfs/pan1/dnaorg/ssudetection/code/epn-options"
@@ -75,7 +73,7 @@ following commands:
 Command 1. 
 'echo $RIBOSENSORDIR'
 This should return only
-/panfs/pan1/dnaorg/ssudetection/code/ribowrapper-sensor
+/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
 
 Command 2. 
 'echo $RIBODIR'
@@ -100,7 +98,7 @@ This should return a potentially larger string that begins with
 Command 5.
 'echo $PATH'
 This should return a potentially longer string that begins with:
-/panfs/pan1/dnaorg/ssudetection/code/ribowrapper
+/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
 
 Command 6.
 'echo $BLASTDB'
@@ -143,7 +141,7 @@ decide what test file to use.
 This example runs the script on a sample file of 15 sequences. Go into
 a new directory and execute:
 
-ribosensor-wrapper.pl $RIBOSENSORDIR/testfiles/seed-15.fa test
+ribosensor.pl $RIBOSENSORDIR/testfiles/seed-15.fa test
 
 The script takes 2 command line arguments:
 
@@ -165,12 +163,12 @@ OUTPUT
 
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ribosensor-wrapper.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
+# ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
 # ribosensor 0.01 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Fri May 26 09:45:18 2017
 #
-# target sequence input file:   /panfs/pan1/infernal/notebook/17_0511_ribo_sensor_wrapper/ribosensor_wrapper/testfiles/seed-15.fa
+# target sequence input file:   /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/testfiles/seed-15.fa
 # output directory name:        test
 # forcing directory overwrite:  yes [-f]
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -379,7 +377,7 @@ G10. SEQ_HOM_MultipleHits      indexer       S_MultipleHits, R_MultipleHits
 
 * these Sensor errors do not trigger a GPIPE error if sequence is 'RPSF'
   (ribotyper pass, sensor fail) and sample is uncultured (-c option not
-  used with ribosensor-wrapper.pl).
+  used with ribosensor_wrapper.pl).
 ---------
 
 For more information on ribotyper errors which are reported prefixed
