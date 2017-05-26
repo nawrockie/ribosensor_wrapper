@@ -67,18 +67,18 @@ opt_Add("-n",           "integer", 0,                        1,    undef, undef,
 opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                      "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
 opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                     "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
 opt_Add("--skipsearch", "boolean", 0,                        1,    undef,  "-f",      "skip search stages, use results from earlier run","skip search stages, use results from earlier run",        \%opt_HH, \@opt_order_A);
-$opt_group_desc_H{"2"} = "16S-sensor related options";
-opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S-sensor minimum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S-sensor maximum seq length to <n>",                    "set 16S-sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smaxevalue",    "real", 1e-40,                    2,    undef, undef,      "set 16S-sensor maximum E-value to <x>",                       "set 16S-sensor maximum E-value to <x>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs <= 350 nt to <n>",     "set 16S-sensor minimum percent id for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs [351..600] nt to <n>", "set 16S-sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S-sensor min percent id for seqs > 600 nt to <n>",      "set 16S-sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S-sensor min coverage for all sequences to <n>",        "set 16S-sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov1",   "integer", 80,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs <= 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov2",   "integer", 86,                       2,    undef, undef,      "set 16S-sensor min coverage for seqs  > 350 nt to <n>",       "set 16S-sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
+$opt_group_desc_H{"2"} = "16S_sensor related options";
+opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S_sensor minimum seq length to <n>",                    "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S_sensor maximum seq length to <n>",                    "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxevalue",    "real", 1e-40,                    2,    undef, undef,      "set 16S_sensor maximum E-value to <x>",                       "set 16S_sensor maximum E-value to <x>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs <= 350 nt to <n>",     "set 16S_sensor minimum percent id for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs [351..600] nt to <n>", "set 16S_sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs > 600 nt to <n>",      "set 16S_sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S_sensor min coverage for all sequences to <n>",        "set 16S_sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov1",   "integer", 80,                       2,    undef, undef,      "set 16S_sensor min coverage for seqs <= 350 nt to <n>",       "set 16S_sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov2",   "integer", 86,                       2,    undef, undef,      "set 16S_sensor min coverage for seqs  > 350 nt to <n>",       "set 16S_sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"3"} = "options for saving sequence subsets to files";
-opt_Add("--psave",       "boolean",0,                        2,    undef, undef,      "save passing sequences to a file",                            "save passing sequences to a file", \%opt_HH, \@opt_order_A);
+opt_Add("--psave",       "boolean",0,                        3,    undef, undef,      "save passing sequences to a file",                            "save passing sequences to a file", \%opt_HH, \@opt_order_A);
 
 # This section needs to be kept in sync (manually) with the opt_Add() section above
 my %GetOptions_H = ();
@@ -110,6 +110,7 @@ my $date          = scalar localtime();
 my $version       = "0.01";
 my $version_str   = "0p01";
 my $releasedate   = "May 2017";
+my $package_name  = "ribosensor";
 
 # make *STDOUT file handle 'hot' so it automatically flushes whenever we print to it
 select *STDOUT;
@@ -117,7 +118,7 @@ $| = 1;
 
 # print help and exit if necessary
 if((! $options_okay) || ($GetOptions_H{"-h"})) { 
-  riboOutputBanner(*STDOUT, $version, $releasedate, $synopsis, $date);
+  ribo_OutputBanner(*STDOUT, $package_name, $version, $releasedate, $synopsis, $date);
   opt_OutputHelp(*STDOUT, $usage, \%opt_HH, \@opt_order_A, \%opt_group_desc_H);
   if(! $options_okay) { die "ERROR, unrecognized option;"; }
   else                { exit 0; } # -h, exit with 0 status
@@ -197,7 +198,7 @@ push(@arg_A, $seq_file);
 push(@arg_desc_A, "output directory name");
 push(@arg_A, $dir_out);
 
-ribo_OutputBanner(*STDOUT, $version, $releasedate, $synopsis, $date);
+ribo_OutputBanner(*STDOUT, $package_name, $version, $releasedate, $synopsis, $date);
 opt_OutputPreamble(*STDOUT, \@arg_desc_A, \@arg_A, \%opt_HH, \@opt_order_A);
 
 # make sure we have the sensor executable files in the current directory
@@ -311,7 +312,7 @@ if(! opt_Get("--skipsearch", \%opt_HH)) {
 }  
 
 ###########################################################################
-# Step 3: Run 16S-sensor on the (up to 3) length-partitioned sequence files
+# Step 3: Run 16S_sensor on the (up to 3) length-partitioned sequence files
 ###########################################################################
 my @sensor_dir_out_A             = (); # [0..$i..$nseq_parts-1], directory created for sensor run on partition $i
 my @sensor_stdoutfile_A          = (); # [0..$i..$nseq_parts-1], standard output file for sensor run on partition $i
@@ -335,7 +336,7 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
     $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_ncpu $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
     if(! opt_Get("--skipsearch", \%opt_HH)) { 
-      $start_secs = ribo_OutputProgressPrior("Running 16S-sensor on seqs of length $spart_desc_A[$i]", $progress_w, undef, *STDOUT);
+      $start_secs = ribo_OutputProgressPrior("Running 16S_sensor on seqs of length $spart_desc_A[$i]", $progress_w, undef, *STDOUT);
       $sensor_secs += ribo_RunCommand($sensor_cmd, opt_Get("-v", \%opt_HH));
       ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
     }
@@ -349,7 +350,7 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
 }
 
 ###########################################################################
-# Step 4: Parse 16S-sensor results and create intermediate file 
+# Step 4: Parse 16S_sensor results and create intermediate file 
 ###########################################################################
 # define data structures for statistics/counts that we will output
 my @outcome_type_A;      # array of outcome 'types', in order they should be output
@@ -422,8 +423,8 @@ my @indexer_A      = (); # array of human errors that fail to indexer rather tha
 my %gpipe2human_HH = ();
 define_gpipe_to_human_map(\%gpipe2human_HH, \@gerror_type_A, \@herror_type_A);
 
-$start_secs = ribo_OutputProgressPrior("Parsing and combining 16S-sensor and ribotyper output", $progress_w, undef, *STDOUT);
-# parse 16S-sensor file to create gpipe format file
+$start_secs = ribo_OutputProgressPrior("Parsing and combining 16S_sensor and ribotyper output", $progress_w, undef, *STDOUT);
+# parse 16S_sensor file to create gpipe format file
 # first unsorted, then sort it.
 parse_sensor_files($unsrt_sensor_indi_FH, \@sensor_classfile_fullpath_A, \@cpart_minlen_A, \@cpart_maxlen_A, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 close($unsrt_sensor_indi_FH);
@@ -477,8 +478,8 @@ output_error_counts(*STDOUT, "GPIPE error counts:", $tot_nseq, \%{$gerror_ct_HH{
 $total_seconds += ribo_SecondsSinceEpoch();
 output_timing_statistics(*STDOUT, $tot_nseq, $tot_nnt, $ncpu, $ribo_secs, $sensor_secs, $total_seconds, \%opt_HH);
 
-printf("#\n# Human readable error-based output saved to file $combined_out_file");
-printf("#\n# GPIPE error-based output saved to file $combined_gpipe_file\n");
+printf("#\n# Human readable error-based output saved to file $combined_out_file\n");
+printf("# GPIPE error-based output saved to file $combined_gpipe_file\n");
 if((opt_Get("--psave", \%opt_HH)) && ($nseq_passed > 0)) { 
   printf("#\n# The $nseq_passed sequences that passed (with $nseq_revcomped minus strand sequences\n# reverse complemented) saved to file $passes_seq_file\n");
 }
@@ -810,7 +811,7 @@ sub output_tail_without_fails_to {
   printf $FH ("# Column 2 [target]:   name of target sequence\n");
   printf $FH ("# Column 3 [taxonomy]: inferred taxonomy of sequence\n");
   printf $FH ("# Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit\n");
-  printf $FH ("# Column 5 [p/f]:      PASS or FAIL\n");
+  printf $FH ("# Column 5 [type]:     \"R<1>S<2>\" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor\n");
   printf $FH ("# Column 6 [error(s)]: reason(s) for failure (see 00README.txt)\n");
   
   output_errors_explanation($FH, $opt_HHR);
@@ -887,7 +888,7 @@ sub output_errors_explanation {
 #  print $FH ("#\n");
 #  print $FH ("# This column will include a '-' if none of the error(s) listed below are detected.\n");
 #  print $FH ("# Or it will contain one or more of the following types of messages. There are no\n");
-#  print $FH ("# whitespaces in this field. Errors from 16S-sensor begin with \'sensor\'. Errors\n");
+#  print $FH ("# whitespaces in this field. Errors from 16S_sensor begin with \'sensor\'. Errors\n");
 #  print $FH ("# from ribotyper begin with 'ribotyper'.\n");
 #  print $FH ("#\n");
 
@@ -1753,7 +1754,7 @@ sub output_timing_statistics {
   printf $FH ("#\n");
 
   # line 1
-  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %*s\n",
+  printf $FH ("# %-*s  %*s  %*s  %*s  %*s  %-*s\n",
                   $width_H{"stage"},    "stage",
                   $width_H{"nseq"},     "num seqs",
                   $width_H{"seqsec"},   "seq/sec",
