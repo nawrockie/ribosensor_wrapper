@@ -1,4 +1,4 @@
-Ribosensor v0.02 README
+Ribosensor v0.03 README
 
 Organization of this file:
 
@@ -61,8 +61,8 @@ source ~/.bashrc
 OR
 source ~/.cshrc
 
-If you get an error about PERL5LIB being undefined, change the second
-line to add to:
+If you get an error about PERL5LIB being undefined, change line 5
+to:
 export PERL5LIB="$RIBODIR:$EPNOPTDIR"
 for .bashrc, OR
 setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
@@ -97,13 +97,12 @@ This should return a potentially larger string that begins with
 
 Command 5.
 'echo $PATH'
-This should return a potentially longer string that begins with:
+This should return a potentially longer string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
 
 Command 6.
 'echo $BLASTDB'
-This should return a potentially longer string that has somewhere
-within it:
+This should return a potentially longer string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
 If any of these commands do not return what they are supposed to,
@@ -164,7 +163,7 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.02 (May 2017)
+# ribosensor 0.03 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Fri May 26 09:45:18 2017
 #
@@ -418,7 +417,7 @@ ribosensor-wrapper.pl by calling it at the command line with the -h
 option:
 
 # ribosensor-wrapper.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.02 (May 2017)
+# ribosensor 0.03 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Fri May 26 10:20:39 2017
 #
