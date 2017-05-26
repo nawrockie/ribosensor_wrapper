@@ -301,7 +301,8 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 # It's important we run ribotyper only once on full file so that E-values are accurate. 
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
-my $ribotyper_cmd   = $execs_H{"ribo"} . " -f -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $keep_opt        = (opt_Get("--keep", \%opt_HH)) ? "--keep" : "";
+my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
 if(! opt_Get("--skipsearch", \%opt_HH)) { 
@@ -2064,6 +2065,8 @@ sub define_gpipe_to_human_map {
   $m2h_HHR->{"SEQ_HOM_MisAsBothStrands"}{"R_BothStrands"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_MisAsHitOrder"}{"R_InconsistentHits"} = 1;
+
+  $m2h_HHR->{"SEQ_HOM_MisAsDupRegion"}{"R_DuplicateRegion"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChl"}{"R_UnacceptableModel"} = 1;
 
