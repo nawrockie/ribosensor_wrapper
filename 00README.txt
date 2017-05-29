@@ -1,4 +1,4 @@
-Ribosensor v0.05 README
+Ribosensor v0.06 README
 
 Organization of this file:
 
@@ -14,61 +14,77 @@ GETTING MORE INFORMATION
 ##############################################################################
 INTRO
 
-This is preliminary documentation for ribosensor, a tool for detecting
-and classifying SSU rRNA and LSU rRNA sequences that uses profile HMMs
-and BLASTN.  
+This is documentation for ribosensor, a tool for detecting and
+classifying SSU rRNA and LSU rRNA sequences that uses profile HMMs and
+BLASTN.
 
 Authors: Eric Nawrocki and Alejandro Scaffer
 
 Current location of code and other relevant files:
-/panfs/pan1/dnaorg/ssudetection/code/ribosensor-wrapper/
+/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/
+
+The initial setup of ribosensor is intended for internal NCBI usage in
+evaluating submissions. It is expected that ribosensor will be
+incorporated into the internal NCBI software architecture called
+gpipe. Therefore, at this time, some of the documentation is on
+internal Confluence pages and some of the error reporting is
+structured in a manner that conforms to established gpipe practices
+for error reporting.
+
 
 ##############################################################################
 SETTING UP ENVIRONMENT VARIABLES
 
-Before you can run ribosensor.pl you will need to update some
-of your environment variables. To do this, add the following seven
-lines to either your .bashrc file (if you use bash shell) or .cshrc
+Before running ribosensor.pl you will need to update some of your
+environment variables. To do this, add the following seven lines to
+either the file .bashrc (if you use bash shell) or the file .cshrc
 file (if you use C shell or tcsh). The .bashrc or .cshrc file will be
-in your home directory. To determine what shell you use type 'echo
-$SHELL', if it returns '/bin/bash', then update your .bashrc file, if
-it returns '/bin/csh' or '/bin/tcsh' then update your .cshrc file.
+in your home directory. To determine what shell you use, enter the
+command 'echo $SHELL' If this command returns '/bin/bash', then update
+the file .bashrc.  If this command returns '/bin/csh' or '/bin/tcsh',
+then update your .cshrc file.
 
-The 7 lines to add to your .bashrc file:
+Before updating the pertinent shell file, it is necessary to know
+whether the environment variable PERL5LIB is already defined or
+not. To determine this information, enter the command echo $PERL5LIB
+If this command returns one or more directories, then PERL5LIB is
+already defined.
+
+The seven lines to add to the file .bashrc, if PERL5LIB is already defined:
 -----------
 export RIBOSENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 export EPNOPTDIR="/panfs/pan1/dnaorg/ssudetection/code/epn-options"
 export RIBODIR="/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 export SENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
 export PERL5LIB="$RIBODIR:$EPNOPTDIR:$PERL5LIB"
-export PATH="$RIBOSENSORDIR:$PATH"
+export PATH="$RIBOSENSORDIR:$SENSORDIR:$PATH"
 export BLASTDB="$SENSORDIR:$BLASTDB"
 -----------
 
-The 7 lines to add to your .cshrc file:
+The seven lines to add to the file .cshrc, if PERL5LIB is already defined:
 -----------
 setenv RIBOSENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 setenv RIBODIR "/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 setenv SENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
 setenv EPNOPTDIR "/panfs/pan1/dnaorg/ssudetection/code/epn-options"
 setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR":"$PERL5LIB"
-setenv PATH "$RIBOSENSORDIR":"$PATH"
+setenv PATH "$RIBOSENSORDIR":"$SENSORDIR":"$PATH"
 setenv BLASTDB "$SENSORDIR":"$BLASTDB"
 -----------
 
-Then, after adding those 7 lines, execute this command:
+If PERL5LIB was not already defined, use instead
+export PERL5LIB="$RIBODIR:$EPNOPTDIR"
+for .bashrc, OR
+setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
+for .cshrc.
+at line 5 out of 7. 
+
+After adding the appropriate seven lines to the appropriate shell file, execute this command:
 source ~/.bashrc
 OR
 source ~/.cshrc
 
-If you get an error about PERL5LIB being undefined, change line 5
-to:
-export PERL5LIB="$RIBODIR:$EPNOPTDIR"
-for .bashrc, OR
-setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
-for .cshrc. And then do 'source ~/.bashrc' or 'source ~/.cshrc' again.
-
-To check that your environment variables are properly set up do the
+To check that your environment variables have been properly adjusted, try the
 following commands:
 Command 1. 
 'echo $RIBOSENSORDIR'
@@ -92,62 +108,73 @@ This should return only
 
 Command 4. 
 'echo $PERL5LIB'
-This should return a potentially larger string that begins with 
+This should return a (potentially longer) string that begins with 
 /panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1:/panfs/pan1/dnaorg/ssudetection/code/epn-options
 
 Command 5.
 'echo $PATH'
-This should return a potentially longer string that includes:
+This should return a (potentially longer) string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
+AND
+/panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
 Command 6.
 'echo $BLASTDB'
-This should return a potentially longer string that includes:
+This should return a (potentially longer) string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
 If any of these commands do not return what they are supposed to,
-please email Eric Nawrocki (nawrocke@ncbi.nlm.nih.gov). If you do see
-the expected output, the sample run below should work.
+please email Eric Nawrocki (nawrocke@ncbi.nlm.nih.gov).
+If you do see the expected output, then the sample run below (in the section
+SAMPLE RUN) should work as described below.
 
 ##############################################################################
 WHAT RIBOSENSOR DOES
 
-Ribosensor is a wrapper program that does little more than call two
-other programs: ribotyper and 16S_sensor and then combine their output
-together. Ribotyper uses profile HMMs to identify and classify small
-subunit (SSU) ribosomal rRNA sequences (archaeal, bacterial,
-eukaryotic) and large subunit ribosomal rRNA sequences. Sensor uses
-BLASTN to identify bacterial and archaeal 16S SSU rRNA sequences using
-a library of type strain archaeal and bacterial 16S sequences.
-Based on the output of both programs, ribosensor decides if each input
-sequence passes or fails. The intent is that sequences that pass
-should be accepted for submission as archaeal or bacterial 16S SSU
-rRNA sequences, and sequences that fail should not. For sequences that
-fail, reasons for failure are reported in the form of sensor,
-ribotyper, and/or GPIPE errors. These errors and their relationship
-are described in the section EXPLANATION OF ERRORS, below.
+Ribosensor is a wrapper program that calls two other programs:
+ribotyper and 16S_sensor (henceforth called 'sensor') and combines
+their output together. Ribotyper uses profile HMMs to identify and
+classify small subunit (SSU) ribosomal rRNA sequences (archaeal,
+bacterial, eukaryotic) and large subunit ribosomal rRNA
+sequences. Sensor uses BLASTN to identify bacterial and archaeal 16S
+SSU rRNA sequences using a library of type strain archaeal and
+bacterial 16S sequences.  Based on the output of both programs,
+ribosensor decides if each input sequence "passes" or "fails". The
+intent is that sequences that pass should be accepted for submission
+to GenBank as archaeal or bacterial 16S SSU rRNA sequences, and
+sequences that fail should not.
 
-For more information on ribotyper, see it's 00README.txt:
+For sequences that fail, reasons for failure are reported in the form
+of sensor, ribotyper, and/or GPIPE errors. These errors and their
+relationship are described in the section EXPLANATION OF ERRORS,
+below. The present structure of handling submissions in gpipe encodes
+the principle that some errors are more serious and basic and "fail to
+the submitter" who is expected to make repairs before trying to revise
+the GenBank submission. Other errors "fail to an indexer", meaning
+that the GenBank indexer handling the submission is expected to make
+the repairs or to do further in-house evaluation of the sequence
+before returning it to the submitter.
+
+For more information on ribotyper, see its 00README.txt:
 https://github.com/nawrockie/ribotyper-v1/blob/master/00README.txt
-For more information on 16S_sensor, see it's README: 
+
+For more information on 16S_sensor, see its README: 
 https://github.com/aaschaffer/16S_sensor/blob/master/README
 
 ##############################################################################
 SAMPLE RUN
 
-decide what test file to use.
-
-This example runs the script on a sample file of 15 sequences. Go into
+This example runs the script on a sample file of 16 sequences. Go into
 a new directory and execute:
 
-ribosensor.pl $RIBOSENSORDIR/testfiles/seed-15.fa test
+ribosensor.pl $RIBOSENSORDIR/testfiles/example-16.fa test
 
-The script takes 2 command line arguments:
+The script ribosensor.pl takes two command line arguments:
 
-The first argument is the sequence file you want to annotate.
+The first argument is the sequence file to annotate.
 
-The second argument is the name of the output directory that you would
-like ribotyper to create. Output files will be placed in this output
+The second argument is the name of the output subdirectory that
+ribotyper should create. Output files will be placed in this output
 directory. If this directory already exists, the program will exit
 with an error message indicating that you need to either (a) remove
 the directory before rerunning, or (b) use the -f option with
@@ -162,20 +189,11 @@ OUTPUT
 
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.05 (May 2017)
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Fri May 26 09:45:18 2017
-#
-# target sequence input file:   /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/testfiles/seed-15.fa
-# output directory name:        test
-# forcing directory overwrite:  yes [-f]
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.3 seconds]
-# Running 16S-sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S-sensor on seqs of length 601..inf         ... done. [1.7 seconds]
-# Parsing and combining 16S-sensor and ribotyper output ... done. [0.0 seconds]
+# Running ribotyper on full sequence file               ... done. [3.1 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [1.9 seconds]
+# Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
 #
@@ -184,9 +202,9 @@ Example output of the script from the above command
   RPSP       8     8        0          0         0
   RPSF       1     0        1          0         0
   RFSP       0     0        0          0         0
-  RFSF       7     0        3          4         0
+  RFSF       7     0        4          3         0
 #
-  *all*     16     8        4          4         0
+  *all*     16     8        5          3         0
 #
 # Per-program error counts:
 #
@@ -224,16 +242,16 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.7      6302.6      6302.6  00:00:03.37  (hh:mm:ss)
-  sensor           16      7.2      9604.5      9604.5  00:00:02.21  (hh:mm:ss)
-  total            16      2.8      3714.9      3714.9  00:00:05.72  (hh:mm:ss)
-#
+  ribotyper        16      5.2      6939.7      6939.7  00:00:03.06  (hh:mm:ss)
+  sensor           16      7.4      9876.7      9876.7  00:00:02.15  (hh:mm:ss)
+  total            16      3.0      3968.1      3968.1  00:00:05.36  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
 # GPIPE error-based output saved to file test/test.ribosensor.gpipe
 #
 #[RIBO-SUCCESS]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -----------------
 Output files:
@@ -358,7 +376,10 @@ R9.  R_LowCoverage       SEQ_HOM_LowCoverage       N/A          coverage of all 
 R10. R_MultipleHits      SEQ_HOM_MultipleHits      N/A          more than 1 hit reported
 ---------
 
-List of GPIPE errors (listed in Ribosensor 'GPIPE output file'):
+The following list of GPIPE errors (listed in Ribosensor 'GPIPE output file') is relevant in the expected gpipe
+usage. One possible difference is that each sequence may be assigned one or more errrors, but gpipe determines
+whether an entire submission (typically comprising multiple sequences) succeeds or fails. At present, a submission
+fails if any of the sequences in the submission fails.
 
 ---------
 idx  GPIPE error               fails to      triggering Sensor/Ribotyper errors
@@ -398,7 +419,7 @@ A few important points about the lists of errors above:
 
 - This definition of Sensor/Ribotyper errors and the GPIPE errors they
   trigger is slightly different from the most recent Confluence
-  'Analysis3-20170515' word document. I made changes where I thought
+  'Analysis3-20170515' word document. Eric made changes where he thought
   it made sense with the following goals in mind:
 
   A) simplifying the 'Outcomes' section of the Analysis document,
@@ -406,22 +427,21 @@ A few important points about the lists of errors above:
   submitter or fail to indexer based on the ribotyper and sensor
   output.  
   
-  B) reporting GPIPE errors in the format that Alex asked for
+  B) reporting GPIPE errors in the format that Alex Kotliarov asked for
   at the May 15 meeting.
 
 ##############################################################################
 ALL COMMAND LINE OPTIONS
 
-You can see all the available command line options to
-ribosensor-wrapper.pl by calling it at the command line with the -h
-option:
+To see all the available command-line options to ribosensor.pl, call
+it with the -h option:
 
-# ribosensor-wrapper.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.05 (May 2017)
+# ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
+# ribosensor 0.06 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Fri May 26 10:20:39 2017
 #
-Usage: ribosensor-wrapper.pl [-options] <fasta file to annotate> <output directory>
+Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
 
 basic options:
@@ -449,14 +469,14 @@ options for saving sequence subsets to files:
 ##############################################################################
 GETTING MORE INFORMATION
 
-Both ribotyper and 16S_sensor have their own README files, where you
-can find additional information on those programs and their output:
+Both ribotyper and 16S_sensor have their own README files, with
+additional information about those programs and their outputs:
 
 https://github.com/nawrockie/ribotyper-v1/blob/master/00README.txt
 https://github.com/aaschaffer/16S_sensor/blob/master/README
 
 --------------------------------------
 
-Last updated: EPN, Fri May 26 10:20:55 2017
+Last updated: AAS, Fri May 26 18:05:00 2017
 
 --------------------------------------

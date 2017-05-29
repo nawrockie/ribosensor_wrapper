@@ -107,7 +107,7 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.05";
+my $version       = "0.06";
 my $releasedate   = "May 2017";
 my $package_name  = "ribosensor";
 
@@ -288,9 +288,11 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
   $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
   $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
   $subseq_nseq_A[$i]   = fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $spart_minlen_A[$i], $spart_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
-  if((! opt_Get("--keep", \%opt_HH)) && ($subseq_nseq_A[$i] > 0)) { 
+  if(! opt_Get("--keep", \%opt_HH)) { 
     push(@to_remove_A, $subseq_sfetch_A[$i]);
-    push(@to_remove_A, $subseq_file_A[$i]);
+    if($subseq_nseq_A[$i] > 0) { 
+      push(@to_remove_A, $subseq_file_A[$i]);
+    }
   }
 }
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
@@ -331,7 +333,7 @@ for(my $i = 0; $i < $nseq_parts; $i++) {
   $sensor_minid_A[$i] = opt_Get("--Sminid" . ($i+1), \%opt_HH);
   if($subseq_nseq_A[$i] > 0) { 
     $sensor_dir_out_A[$i]             = $dir_out . "/sensor-" . ($i+1) . "-out";
-    $sensor_stdoutfile_A[$i]          = $out_root . "sensor-" . ($i+1) . ".stdout";
+    $sensor_stdoutfile_A[$i]          = $out_root . ".sensor-" . ($i+1) . ".stdout";
     $sensor_classfile_argument_A[$i]  = "sensor-class." . ($i+1) . ".out";
     $sensor_classfile_fullpath_A[$i]  = $sensor_dir_out_A[$i] . "/sensor-class." . ($i+1) . ".out";
     $sensor_cmd = $execs_H{"sensor"} . " $sensor_minlen $sensor_maxlen $subseq_file_A[$i] $sensor_classfile_argument_A[$i] $sensor_minid_A[$i] $sensor_maxevalue $sensor_ncpu $sensor_dir_out_A[$i] > $sensor_stdoutfile_A[$i]";
@@ -463,6 +465,11 @@ close($combined_out_FH);
 close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
+
+# remove files we don't want anymore, then exit
+foreach my $file (@to_remove_A) { 
+  unlink $file;
+}
 
 # save output files that were specified with cmdline options
 my $nseq_passed    = 0; # number of sequences 
@@ -1319,7 +1326,7 @@ sub determine_fails_to_string {
   }
   else { 
     foreach $indexer_error (@{$indexer_AR}) { 
-      if($doctored_failmsg =~ m/$indexer_error\;/) { 
+      if($doctored_failmsg =~ m/$indexer_error/) { 
         return "indexer";
       }
     }
