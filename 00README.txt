@@ -1,4 +1,4 @@
-Ribosensor v0.05 README
+Ribosensor v0.06 README
 
 Organization of this file:
 
@@ -167,7 +167,7 @@ SAMPLE RUN
 This example runs the script on a sample file of 16 sequences. Go into
 a new directory and execute:
 
-ribosensor.pl $RIBOSENSORDIR/testfiles/seed-15.fa test
+ribosensor.pl $RIBOSENSORDIR/testfiles/example-16.fa test
 
 The script ribosensor.pl takes two command line arguments:
 
@@ -189,20 +189,11 @@ OUTPUT
 
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.05 (May 2017)
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Fri May 26 09:45:18 2017
-#
-# target sequence input file:   /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/testfiles/seed-15.fa
-# output directory name:        test
-# forcing directory overwrite:  yes [-f]
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.3 seconds]
-# Running 16S-sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S-sensor on seqs of length 601..inf         ... done. [1.7 seconds]
-# Parsing and combining 16S-sensor and ribotyper output ... done. [0.0 seconds]
+# Running ribotyper on full sequence file               ... done. [3.1 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [1.9 seconds]
+# Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
 #
@@ -211,9 +202,9 @@ Example output of the script from the above command
   RPSP       8     8        0          0         0
   RPSF       1     0        1          0         0
   RFSP       0     0        0          0         0
-  RFSF       7     0        3          4         0
+  RFSF       7     0        4          3         0
 #
-  *all*     16     8        4          4         0
+  *all*     16     8        5          3         0
 #
 # Per-program error counts:
 #
@@ -251,16 +242,16 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.7      6302.6      6302.6  00:00:03.37  (hh:mm:ss)
-  sensor           16      7.2      9604.5      9604.5  00:00:02.21  (hh:mm:ss)
-  total            16      2.8      3714.9      3714.9  00:00:05.72  (hh:mm:ss)
-#
+  ribotyper        16      5.2      6939.7      6939.7  00:00:03.06  (hh:mm:ss)
+  sensor           16      7.4      9876.7      9876.7  00:00:02.15  (hh:mm:ss)
+  total            16      3.0      3968.1      3968.1  00:00:05.36  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
 # GPIPE error-based output saved to file test/test.ribosensor.gpipe
 #
 #[RIBO-SUCCESS]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -----------------
 Output files:
@@ -446,7 +437,7 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.05 (May 2017)
+# ribosensor 0.06 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Fri May 26 10:20:39 2017
 #
