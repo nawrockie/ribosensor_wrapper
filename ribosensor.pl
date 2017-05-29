@@ -1326,7 +1326,7 @@ sub determine_fails_to_string {
   }
   else { 
     foreach $indexer_error (@{$indexer_AR}) { 
-      if($doctored_failmsg =~ m/$indexer_error\;/) { 
+      if($doctored_failmsg =~ m/$indexer_error/) { 
         return "indexer";
       }
     }

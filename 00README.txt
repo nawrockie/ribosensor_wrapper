@@ -57,7 +57,7 @@ export EPNOPTDIR="/panfs/pan1/dnaorg/ssudetection/code/epn-options"
 export RIBODIR="/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 export SENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
 export PERL5LIB="$RIBODIR:$EPNOPTDIR:$PERL5LIB"
-export PATH="$RIBOSENSORDIR:$PATH"
+export PATH="$RIBOSENSORDIR:$SENSORDIR:$PATH"
 export BLASTDB="$SENSORDIR:$BLASTDB"
 -----------
 
@@ -68,7 +68,7 @@ setenv RIBODIR "/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
 setenv SENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/16S_sensor"
 setenv EPNOPTDIR "/panfs/pan1/dnaorg/ssudetection/code/epn-options"
 setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR":"$PERL5LIB"
-setenv PATH "$RIBOSENSORDIR":"$PATH"
+setenv PATH "$RIBOSENSORDIR":"$SENSORDIR":"$PATH"
 setenv BLASTDB "$SENSORDIR":"$BLASTDB"
 -----------
 
