@@ -124,9 +124,41 @@ This should return a (potentially longer) string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
 If any of these commands do not return what they are supposed to,
-please email Eric Nawrocki (nawrocke@ncbi.nlm.nih.gov).
-If you do see the expected output, then the sample run below (in the section
-SAMPLE RUN) should work as described below.
+please email Eric Nawrocki (nawrocke@ncbi.nlm.nih.gov). If you do see
+the expected output, and you have the prequisite programs installed as
+explained below, the sample run below should work.
+
+##############################################################################
+PREREQUISITE PROGRAMS
+
+The Infernal v1.1.2 software package must be installed prior to
+running ribotyper.pl, and its executables must be in your $PATH.
+Further, the easel 'miniapps' that are installed with Infernal must be
+in your $PATH. You can download Infernal from
+http://eddylab.org/infernal/.
+
+*****************************************
+Internal NCBI-specific instructions:
+The v1.1.2 Infernal executables and the easel miniapps are already
+installed system wide at NCBI. You'll need to login into a node that
+runs CentOS 7. Add 'infernal' to the facilities line of your
+.ncbi_hints file. And add the following line to your .ncbi_hints file:
+option infernal_version 1.1.2
+*****************************************
+
+To check if you have Infernal and the executables installed and in
+your path. Execute the following two commands:
+
+$ cmsearch -h 
+$ esl-sfetch -h
+
+The first command should return the usage for cmsearch with a line
+that says: INFERNAL 1.1.2 (July 2016).
+And the second command should return the usage for esl-sfetch with a
+line that says: Easel 0.43 (July 2016).
+
+If this is true, and you were able to set your environment variables
+as explained above, the sample run below should work.
 
 ##############################################################################
 WHAT RIBOSENSOR DOES
