@@ -82,9 +82,9 @@ opt_Add("--psave",       "boolean",0,                        3,    undef, undef,
 
 # This section needs to be kept in sync (manually) with the opt_Add() section above
 my %GetOptions_H = ();
-my $usage    = "Usage: ribosensor-wrapper.pl [-options] <fasta file to annotate> <output directory>\n";
+my $usage    = "Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>\n";
 $usage      .= "\n";
-my $synopsis = "ribosensor-wrapper.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN";
+my $synopsis = "ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN";
 my $options_okay = 
     &GetOptions('h'            => \$GetOptions_H{"-h"}, 
                 'f'            => \$GetOptions_H{"-f"},
