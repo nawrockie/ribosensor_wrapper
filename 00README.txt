@@ -1,4 +1,4 @@
-Ribosensor v0.09 README
+Ribosensor v0.10 README
 
 Organization of this file:
 
@@ -237,9 +237,9 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.1 seconds]
+# Running ribotyper on full sequence file               ... done. [3.3 seconds]
 # Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [1.9 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [1.7 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -247,11 +247,11 @@ Example output of the script from the above command
 # type   total  pass  indexer  submitter  unmapped
 # -----  -----  ----  -------  ---------  --------
   RPSP       8     8        0          0         0
-  RPSF       1     0        1          0         0
+  RPSF       1     0        0          1         0
   RFSP       0     0        0          0         0
-  RFSF       7     0        4          3         0
+  RFSF       7     0        0          7         0
 #
-  *all*     16     8        5          3         0
+  *all*     16     8        0          8         0
 #
 # Per-program error counts:
 #
@@ -289,9 +289,9 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      5.2      6939.7      6939.7  00:00:03.06  (hh:mm:ss)
-  sensor           16      7.4      9876.7      9876.7  00:00:02.15  (hh:mm:ss)
-  total            16      3.0      3968.1      3968.1  00:00:05.36  (hh:mm:ss)
+  ribotyper        16      4.9      6448.5      6448.5  00:00:03.30  (hh:mm:ss)
+  sensor           16      8.6     11473.2     11473.2  00:00:01.85  (hh:mm:ss)
+  total            16      3.0      4043.5      4043.5  00:00:05.26  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -319,7 +319,7 @@ $ cat testfiles/test.ribosensor.out
 #---  ---------------------------------------------  ---------------------  -----------------  ----  ---------  --------
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP       pass  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP       pass  -
-3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF    indexer  S_LowScore;S_BothStrands;S_MultipleHits;
+3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF  submitter  S_LowScore;S_BothStrands;S_MultipleHits;
 4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
 5     random                                         -                      NA                 RFSF  submitter  S_NoHits;R_NoHits;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP       pass  -
@@ -328,9 +328,9 @@ $ cat testfiles/test.ribosensor.out
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP       pass  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP       pass  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP       pass  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  submitter  S_LowScore;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  submitter  S_TooLong;R_UnacceptableModel:(SSU_rRNA_eukarya);
 #
@@ -484,9 +484,9 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.06 (May 2017)
+# ribosensor 0.10 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Fri May 26 10:20:39 2017
+# date:    Tue May 30 16:12:25 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
