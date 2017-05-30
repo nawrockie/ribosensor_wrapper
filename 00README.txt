@@ -1,4 +1,4 @@
-Ribosensor v0.07 README
+Ribosensor v0.08 README
 
 Organization of this file:
 
@@ -484,8 +484,3 @@ additional information about those programs and their outputs:
 https://github.com/nawrockie/ribotyper-v1/blob/master/00README.txt
 https://github.com/aaschaffer/16S_sensor/blob/master/README
 
---------------------------------------
-
-Last updated: AAS, Fri May 26 18:05:00 2017
-
---------------------------------------
