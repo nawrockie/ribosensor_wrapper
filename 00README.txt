@@ -1,4 +1,4 @@
-Ribosensor v0.08 README
+Ribosensor v0.09 README
 
 Organization of this file:
 
@@ -137,6 +137,9 @@ Further, the easel 'miniapps' that are installed with Infernal must be
 in your $PATH. You can download Infernal from
 http://eddylab.org/infernal/.
 
+Additionally, the 'blastn' program from BLAST version 2.6.0+ must be
+installed and in your $PATH.
+
 *****************************************
 Internal NCBI-specific instructions:
 The v1.1.2 Infernal executables and the easel miniapps are already
@@ -146,16 +149,19 @@ runs CentOS 7. Add 'infernal' to the facilities line of your
 option infernal_version 1.1.2
 *****************************************
 
-To check if you have Infernal and the executables installed and in
-your path. Execute the following two commands:
+To check if you have Infernal, BLAST and the required executables
+installed and in your path. Execute the following two commands:
 
 $ cmsearch -h 
 $ esl-sfetch -h
+$ blastn -h
 
 The first command should return the usage for cmsearch with a line
 that says: INFERNAL 1.1.2 (July 2016).
-And the second command should return the usage for esl-sfetch with a
+The second command should return the usage for esl-sfetch with a
 line that says: Easel 0.43 (July 2016).
+The third command should return blastn usage with a line at the end
+that says BLAST 2.6.0+.
 
 If this is true, and you were able to set your environment variables
 as explained above, the sample run below should work.
