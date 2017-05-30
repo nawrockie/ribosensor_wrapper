@@ -1,4 +1,4 @@
-Ribosensor v0.08 README
+Ribosensor v0.09 README
 
 Organization of this file:
 
