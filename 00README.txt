@@ -1,4 +1,4 @@
-Ribosensor v0.06 README
+Ribosensor v0.07 README
 
 Organization of this file:
 
@@ -164,10 +164,19 @@ https://github.com/aaschaffer/16S_sensor/blob/master/README
 ##############################################################################
 SAMPLE RUN
 
-This example runs the script on a sample file of 16 sequences. Go into
-a new directory and execute:
+This example runs the script on a sample file of 16 sequences. 
 
-ribosensor.pl $RIBOSENSORDIR/testfiles/example-16.fa test
+You can only run ribotyper on sequence files that are in directories
+to which you have write permission. So the first step is to copy the
+example sequence file into a new directory you have write permission
+to. Move into that directory and copy the example file with this
+command: 
+
+> cp $RIBOSENSORDIR/testfiles/example-16.fa ./
+
+Then execute the following command:
+
+> ribosensor.pl example-16.fa test
 
 The script ribosensor.pl takes two command line arguments:
 
