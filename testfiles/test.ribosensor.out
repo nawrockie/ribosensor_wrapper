@@ -2,8 +2,8 @@
 #---  ---------------------------------------------  ---------------------  -----------------  ----  ---------  --------
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP       pass  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP       pass  -
-3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF    indexer  S_LowScore;S_BothStrands;S_MultipleHits;
-4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF    indexer  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
+3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF  submitter  S_LowScore;S_BothStrands;S_MultipleHits;
+4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
 5     random                                         -                      NA                 RFSF  submitter  S_NoHits;R_NoHits;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP       pass  -
 7     00035::Bacteroides_fragilis::M61006|g143965    SSU.Bacteria           plus               RPSP       pass  -
@@ -11,9 +11,9 @@
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP       pass  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP       pass  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP       pass  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF    indexer  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  submitter  S_LowScore;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  submitter  S_TooLong;R_UnacceptableModel:(SSU_rRNA_eukarya);
 #
