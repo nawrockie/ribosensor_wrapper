@@ -28,7 +28,7 @@ if(! (-d $sensordir)) {
 
 my $ribo_exec_dir   = $ribodir . "/";
 my $sensor_exec_dir = $sensordir . "/";
-my $esl_exec_dir    = $ribodir . "/infernal-1.1.2/easel/miniapps/";
+#my $esl_exec_dir    = $ribodir . "/infernal-1.1.2/easel/miniapps/";
 my $ribo_model_dir  = $ribodir . "/models/";
 
 #########################################################
@@ -202,8 +202,8 @@ opt_OutputPreamble(*STDOUT, \@arg_desc_A, \@arg_A, \%opt_HH, \@opt_order_A);
 
 # make sure we have the sensor executable files in the current directory
 my %execs_H = (); # hash with paths to all required executables
-$execs_H{"esl-seqstat"} = $esl_exec_dir    . "esl-seqstat";
-$execs_H{"esl-sfetch"}  = $esl_exec_dir    . "esl-sfetch";
+#$execs_H{"esl-seqstat"} = $esl_exec_dir    . "esl-seqstat";
+#$execs_H{"esl-sfetch"}  = $esl_exec_dir    . "esl-sfetch";
 $execs_H{"ribo"}        = $ribo_exec_dir   . "ribotyper.pl";
 $execs_H{"sensor"}      = $sensor_exec_dir . "16S_sensor_script";
 ribo_ValidateExecutableHash(\%execs_H);
@@ -275,7 +275,7 @@ if(! opt_Get("--skipsearch", \%opt_HH)) {
   # check for SSI index file for the sequence file,
   # if it doesn't exist, create it
   if(ribo_CheckIfFileExistsAndIsNonEmpty($ssi_file, undef, undef, 0) != 1) { 
-    ribo_RunCommand($execs_H{"esl-sfetch"} . " --index $seq_file > /dev/null", opt_Get("-v", \%opt_HH));
+    ribo_RunCommand("esl-sfetch --index $seq_file > /dev/null", opt_Get("-v", \%opt_HH));
     if(ribo_CheckIfFileExistsAndIsNonEmpty($ssi_file, undef, undef, 0) != 1) { 
       die "ERROR, tried to create $ssi_file, but failed"; 
     }
@@ -285,7 +285,7 @@ else {
   $start_secs = ribo_OutputProgressPrior("Determining size of input sequence file", $progress_w, undef, *STDOUT);
 }
   
-$tot_nnt  = ribo_ProcessSequenceFile($execs_H{"esl-seqstat"}, $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
+$tot_nnt  = ribo_ProcessSequenceFile("esl-seqstat", $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 $tot_nseq = scalar(keys %seqidx_H);
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $seqstat_file);
@@ -296,7 +296,7 @@ my $do_fetch = (opt_Get("--skipsearch", \%opt_HH)) ? 0 : 1; # do not fetch the s
 for($i = 0; $i < $nseq_parts; $i++) { 
   $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
   $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
-  $subseq_nseq_A[$i]   = fetch_seqs_in_length_range($execs_H{"esl-sfetch"}, $seq_file, $do_fetch, $spart_minlen_A[$i], $spart_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
+  $subseq_nseq_A[$i]   = fetch_seqs_in_length_range("esl-sfetch", $seq_file, $do_fetch, $spart_minlen_A[$i], $spart_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
   if(! opt_Get("--keep", \%opt_HH)) { 
     push(@to_remove_A, $subseq_sfetch_A[$i]);
     if($subseq_nseq_A[$i] > 0) { 
@@ -491,7 +491,7 @@ foreach my $file (@to_remove_A) {
 my $nseq_passed    = 0; # number of sequences 
 my $nseq_revcomped = 0; # number of sequences reverse complemented
 if(opt_Get("--psave", \%opt_HH)) { 
-  ($nseq_passed, $nseq_revcomped) = fetch_seqs_given_gpipe_file($execs_H{"esl-sfetch"}, $seq_file, $combined_out_file, "pass", 6, 1, $passes_sfetch_file, $passes_seq_file, \%seqlen_H, \%opt_HH);
+  ($nseq_passed, $nseq_revcomped) = fetch_seqs_given_gpipe_file("esl-sfetch", $seq_file, $combined_out_file, "pass", 6, 1, $passes_sfetch_file, $passes_seq_file, \%seqlen_H, \%opt_HH);
 }
 
 output_outcome_counts(*STDOUT, \%outcome_ct_HH);
