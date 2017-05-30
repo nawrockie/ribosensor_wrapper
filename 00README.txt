@@ -1,4 +1,4 @@
-Ribosensor v0.10 README
+Ribosensor v0.11 README
 
 Organization of this file:
 
@@ -484,7 +484,7 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.10 (May 2017)
+# ribosensor 0.11 (May 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Tue May 30 16:12:25 2017
 #
