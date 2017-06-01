@@ -72,17 +72,28 @@ setenv PATH "$RIBOSENSORDIR":"$SENSORDIR":"$PATH"
 setenv BLASTDB "$SENSORDIR":"$BLASTDB"
 -----------
 
-If PERL5LIB was not already defined, use instead
+After adding the appropriate seven lines to the appropriate shell file, execute this command:
+source ~/.bashrc
+OR
+source ~/.cshrc
+
+If PERL5LIB was not already defined (you'll know if you get an error
+message when you run the above 'source' command): 
+use instead
 export PERL5LIB="$RIBODIR:$EPNOPTDIR"
 for .bashrc, OR
 setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
 for .cshrc.
 at line 5 out of 7. 
 
-After adding the appropriate seven lines to the appropriate shell file, execute this command:
-source ~/.bashrc
-OR
-source ~/.cshrc
+If BLASTDB was not already defined (you'll know if you get an error
+message when you run the above 'source' command): 
+use instead
+export BLASTDB="$SENSORDIR"
+for .bashrc, OR
+setenv BLASTDB "$SENSORDIR"
+for .cshrc.
+at line 7 out of 7. 
 
 To check that your environment variables have been properly adjusted, try the
 following commands:
