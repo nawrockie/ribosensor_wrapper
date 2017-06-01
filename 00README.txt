@@ -1,4 +1,4 @@
-Ribosensor v0.11 README
+Ribosensor v0.12 README
 
 Organization of this file:
 
@@ -72,17 +72,28 @@ setenv PATH "$RIBOSENSORDIR":"$SENSORDIR":"$PATH"
 setenv BLASTDB "$SENSORDIR":"$BLASTDB"
 -----------
 
-If PERL5LIB was not already defined, use instead
+After adding the appropriate seven lines to the appropriate shell file, execute this command:
+source ~/.bashrc
+OR
+source ~/.cshrc
+
+If PERL5LIB was not already defined (you'll know if you get an error
+message when you run the above 'source' command): 
+use instead
 export PERL5LIB="$RIBODIR:$EPNOPTDIR"
 for .bashrc, OR
 setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
 for .cshrc.
 at line 5 out of 7. 
 
-After adding the appropriate seven lines to the appropriate shell file, execute this command:
-source ~/.bashrc
-OR
-source ~/.cshrc
+If BLASTDB was not already defined (you'll know if you get an error
+message when you run the above 'source' command): 
+use instead
+export BLASTDB="$SENSORDIR"
+for .bashrc, OR
+setenv BLASTDB "$SENSORDIR"
+for .cshrc.
+at line 7 out of 7. 
 
 To check that your environment variables have been properly adjusted, try the
 following commands:
@@ -484,9 +495,9 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.11 (May 2017)
+# ribosensor 0.12 (June 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Tue May 30 16:12:25 2017
+# date:    Thu Jun  1 10:52:21 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
