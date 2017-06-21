@@ -2,7 +2,7 @@
 #---  ---------------------------------------------  ---------------------  -----------------  ----  ---------  --------
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP       pass  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP       pass  -
-3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF  submitter  S_LowScore;S_BothStrands;S_MultipleHits;
+3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            plus               RPSF       pass  S_LowScore;
 4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
 5     random                                         -                      NA                 RFSF  submitter  S_NoHits;R_NoHits;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP       pass  -
