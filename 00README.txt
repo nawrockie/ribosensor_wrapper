@@ -1,4 +1,4 @@
-Ribosensor v0.13 README
+Ribosensor v0.14 README
 
 Organization of this file:
 
@@ -247,10 +247,10 @@ OUTPUT
 
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.3 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [1.7 seconds]
+# Partitioning sequence file based on sequence lengths  ... done. [0.2 seconds]
+# Running ribotyper on full sequence file               ... done. [3.6 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.3 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [1.5 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -258,11 +258,11 @@ Example output of the script from the above command
 # type   total  pass  indexer  submitter  unmapped
 # -----  -----  ----  -------  ---------  --------
   RPSP       8     8        0          0         0
-  RPSF       1     0        0          1         0
+  RPSF       1     1        0          0         0
   RFSP       0     0        0          0         0
   RFSF       7     0        0          7         0
 #
-  *all*     16     8        0          8         0
+  *all*     16     9        0          7         0
 #
 # Per-program error counts:
 #
@@ -273,8 +273,7 @@ Example output of the script from the above command
   S_NoHits                   1   0.06250
   S_TooLong                  1   0.06250
   S_LowScore                 5   0.31250
-  S_BothStrands              1   0.06250
-  S_MultipleHits             4   0.25000
+  S_MultipleHits             3   0.18750
   S_LowSimilarity            5   0.31250
   R_NoHits                   1   0.06250
   R_UnacceptableModel        5   0.31250
@@ -283,26 +282,25 @@ Example output of the script from the above command
 #
 # GPIPE error counts:
 #
-#                           number   fraction
-# error                     of seqs   of seqs
-# ------------------------  -------  --------
-  CLEAN                           8   0.50000
-  SEQ_HOM_Not16SrRNA              1   0.06250
-  SEQ_HOM_LowSimilarity           5   0.31250
-  SEQ_HOM_LengthLong              1   0.06250
-  SEQ_HOM_MisAsBothStrands        1   0.06250
-  SEQ_HOM_TaxNotArcBacChl         5   0.31250
-  SEQ_HOM_LowCoverage             1   0.06250
-  SEQ_HOM_MultipleHits            4   0.25000
+#                          number   fraction
+# error                    of seqs   of seqs
+# -----------------------  -------  --------
+  CLEAN                          9   0.56250
+  SEQ_HOM_Not16SrRNA             1   0.06250
+  SEQ_HOM_LowSimilarity          5   0.31250
+  SEQ_HOM_LengthLong             1   0.06250
+  SEQ_HOM_TaxNotArcBacChl        5   0.31250
+  SEQ_HOM_LowCoverage            1   0.06250
+  SEQ_HOM_MultipleHits           3   0.18750
 #
 #
 # Timing statistics:
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.9      6448.5      6448.5  00:00:03.30  (hh:mm:ss)
-  sensor           16      8.6     11473.2     11473.2  00:00:01.85  (hh:mm:ss)
-  total            16      3.0      4043.5      4043.5  00:00:05.26  (hh:mm:ss)
+  ribotyper        16      4.5      5942.9      5942.9  00:00:03.58  (hh:mm:ss)
+  sensor           16      8.9     11848.5     11848.5  00:00:01.79  (hh:mm:ss)
+  total            16      2.6      3495.1      3495.1  00:00:06.08  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -330,7 +328,7 @@ $ cat testfiles/test.ribosensor.out
 #---  ---------------------------------------------  ---------------------  -----------------  ----  ---------  --------
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP       pass  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP       pass  -
-3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF  submitter  S_LowScore;S_BothStrands;S_MultipleHits;
+3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            plus               RPSF       pass  S_LowScore;
 4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
 5     random                                         -                      NA                 RFSF  submitter  S_NoHits;R_NoHits;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP       pass  -
@@ -372,7 +370,7 @@ $ cat testfiles/test.ribosensor.gpipe
 #---  ---------------------------------------------  ---------------------  -----------------  ----  --------
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP  -
-3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            mixed(S):plus(R)   RPSF  SEQ_HOM_MisAsBothStrands;SEQ_HOM_MultipleHits;
+3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            plus               RPSF  -
 4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_LowCoverage;
 5     random                                         -                      NA                 RFSF  SEQ_HOM_Not16SrRNA;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP  -
@@ -495,9 +493,9 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.13 (June 2017)
+# ribosensor 0.14 (June 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Wed Jun 21 11:32:13 2017
+# date:    Wed Jun 21 11:45:25 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
