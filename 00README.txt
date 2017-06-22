@@ -1,4 +1,4 @@
-Ribosensor v0.15 README
+Ribosensor v0.16 README
 
 Organization of this file:
 
@@ -256,9 +256,9 @@ Example output of the script from the above command
 # output directory name:       test         
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.0 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [1.3 seconds]
+# Running ribotyper on full sequence file               ... done. [3.5 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.1 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [0.8 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -278,11 +278,10 @@ Example output of the script from the above command
 # error                of seqs   of seqs
 # -------------------  -------  --------
   CLEAN                      8   0.50000
-  S_NoHits                   1   0.06250
+  S_NoHits                   2   0.12500
   S_TooLong                  1   0.06250
-  S_LowScore                 5   0.31250
-  S_MultipleHits             3   0.18750
-  S_LowSimilarity            5   0.31250
+  S_LowScore                 4   0.25000
+  S_LowSimilarity            4   0.25000
   R_NoHits                   1   0.06250
   R_UnacceptableModel        5   0.31250
   R_LowCoverage              1   0.06250
@@ -294,21 +293,20 @@ Example output of the script from the above command
 # error                    of seqs   of seqs
 # -----------------------  -------  --------
   CLEAN                          9   0.56250
-  SEQ_HOM_Not16SrRNA             1   0.06250
-  SEQ_HOM_LowSimilarity          5   0.31250
+  SEQ_HOM_Not16SrRNA             2   0.12500
+  SEQ_HOM_LowSimilarity          4   0.25000
   SEQ_HOM_LengthLong             1   0.06250
   SEQ_HOM_TaxNotArcBacChl        5   0.31250
   SEQ_HOM_LowCoverage            1   0.06250
-  SEQ_HOM_MultipleHits           3   0.18750
 #
 #
 # Timing statistics:
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      5.4      7115.0      7115.0  00:00:02.99  (hh:mm:ss)
-  sensor           16     11.1     14699.8     14699.8  00:00:01.45  (hh:mm:ss)
-  total            16      3.5      4678.6      4678.6  00:00:04.54  (hh:mm:ss)
+  ribotyper        16      4.6      6156.8      6156.8  00:00:03.45  (hh:mm:ss)
+  sensor           16     16.4     21828.8     21828.8  00:00:00.97  (hh:mm:ss)
+  total            16      3.5      4682.0      4682.0  00:00:04.54  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -345,9 +343,9 @@ $ cat testfiles/test.ribosensor.out
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP       pass  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP       pass  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP       pass  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_MultipleHits;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  submitter  S_LowScore;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  submitter  S_NoHits;R_UnacceptableModel:(SSU_rRNA_eukarya);
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  submitter  S_LowScore;S_LowSimilarity;R_UnacceptableModel:(SSU_rRNA_eukarya);
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  submitter  S_TooLong;R_UnacceptableModel:(SSU_rRNA_eukarya);
 #
@@ -387,9 +385,9 @@ $ cat testfiles/test.ribosensor.gpipe
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_Not16SrRNA;SEQ_HOM_TaxNotArcBacChl;
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  SEQ_HOM_LengthLong;SEQ_HOM_TaxNotArcBacChl;
 #
@@ -501,9 +499,9 @@ To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.14 (June 2017)
+# ribosensor 0.16 (June 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Wed Jun 21 11:45:25 2017
+# date:    Thu Jun 22 15:44:23 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
