@@ -11,9 +11,9 @@
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;SEQ_HOM_MultipleHits;
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_Not16SrRNA;SEQ_HOM_TaxNotArcBacChl;
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  SEQ_HOM_LengthLong;SEQ_HOM_TaxNotArcBacChl;
 #
