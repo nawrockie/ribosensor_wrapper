@@ -293,10 +293,10 @@ Example output of the script from the above command
 # error                    of seqs   of seqs
 # -----------------------  -------  --------
   CLEAN                          9   0.56250
-  SEQ_HOM_Not16SrRNA             2   0.12500
+  SEQ_HOM_NotSSUOrLSUrRNA             2   0.12500
   SEQ_HOM_LowSimilarity          4   0.25000
   SEQ_HOM_LengthLong             1   0.06250
-  SEQ_HOM_TaxNotArcBacChl        5   0.31250
+  SEQ_HOM_TaxNotArcBacChl16SrRNA        5   0.31250
   SEQ_HOM_LowCoverage            1   0.06250
 #
 #
@@ -378,16 +378,16 @@ $ cat testfiles/test.ribosensor.gpipe
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP  -
 3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            plus               RPSF  -
 4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_LowCoverage;
-5     random                                         -                      NA                 RFSF  SEQ_HOM_Not16SrRNA;
+5     random                                         -                      NA                 RFSF  SEQ_HOM_NotSSUOrLSUrRNA;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP  -
 7     00035::Bacteroides_fragilis::M61006|g143965    SSU.Bacteria           plus               RPSP  -
 8     01106::Bacillus_subtilis::K00637               SSU.Bacteria           plus               RPSP  -
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_Not16SrRNA;SEQ_HOM_TaxNotArcBacChl;
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl16SrRNA;
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl16SrRN;
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_NotSSUOrLSUrRNA;SEQ_HOM_TaxNotArcBacChl;
 15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
 16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  SEQ_HOM_LengthLong;SEQ_HOM_TaxNotArcBacChl;
 #
@@ -416,26 +416,26 @@ readable output file'):
      Ribotyper (R_) or                             RPSF and
 idx  Sensor (S_) error   associated GPIPE error    uncultued    cause/explanation
 ---  -----------------   ------------------------  ----------   ------------------------------------
-S1.  S_NoHits            SEQ_HOM_Not16SrRNA        yes          no hits reported ('no' column 2)
-S2.  S_NoSimilarity      SEQ_HOM_LowSimilarity     yes          coverage (column 5) of best blast hit is < 10%
-S3.  S_LowSimilarity     SEQ_HOM_LowSimilarity     yes          coverage (column 5) of best blast hit is < 80%
+S1.  S_NoHits            SEQ_HOM_NotSSUOrLSUrRNA         yes    no hits reported ('no' column 2)
+S2.  S_NoSimilarity      SEQ_HOM_LowSimilarity           yes    coverage (column 5) of best blast hit is < 10%
+S3.  S_LowSimilarity     SEQ_HOM_LowSimilarity           yes    coverage (column 5) of best blast hit is < 80%
                                                                 (<=350nt) or 86% (>350nt)
-S4.  S_LowScore          SEQ_HOM_LowSimilarity     yes          either id percentage below length dependent threshold (75,80,86)
+S4.  S_LowScore          SEQ_HOM_LowSimilarity           yes    either id percentage below length dependent threshold (75,80,86)
                                                                 OR E-value above 1e-40 ('imperfect_match' column 2)
-S5.  S_BothStrands       SEQ_HOM_MisAsBothStrands  no           hits on both strands ('mixed' column 2)
-S6.  S_MultipleHits      SEQ_HOM_MultipleHits      no           more than 1 hit reported (column 4 > 1)
+S5.  S_BothStrands       SEQ_HOM_MisAsBothStrands         no    hits on both strands ('mixed' column 2)
+S6.  S_MultipleHits      SEQ_HOM_MultipleHits             no    more than 1 hit reported (column 4 > 1)
 ------------------------------------------------------------------------------------------------------------------------------
-R1.  R_NoHits            SEQ_HOM_Not16SrRNA        N/A          no hits reported
-R2.  R_MultipleFamilies  SEQ_HOM_16SAnd23SrRNA     N/A          SSU and LSU hits
-R3.  R_LowScore          SEQ_HOM_LowSimilarity     N/A          bits/position score is < 0.5
-R4.  R_BothStrands       SEQ_HOM_MisAsBothStrands  N/A          hits on both strands
-R5.  R_InconsistentHits  SEQ_HOM_MisAsHitOrder     N/A          hits are in different order in sequence and model
-R6.  R_DuplicateRegion   SEQ_HOM_MisAsDupRegion    N/A          hits overlap by 10 or more model positions
-R7.  R_UnacceptableModel SEQ_HOM_TaxNotArcBacChl   N/A          best hit is to model other than SSU.Archaea, SSU.Bacteria,
+R1.  R_NoHits            SEQ_HOM_NotSSUOrLSUrRNA         N/A    no hits reported
+R2.  R_MultipleFamilies  SEQ_HOM_SSUAndLSUrRNA           N/A    SSU and LSU hits
+R3.  R_LowScore          SEQ_HOM_LowSimilarity           N/A    bits/position score is < 0.5
+R4.  R_BothStrands       SEQ_HOM_MisAsBothStrands        N/A    hits on both strands
+R5.  R_InconsistentHits  SEQ_HOM_MisAsHitOrder           N/A    hits are in different order in sequence and model
+R6.  R_DuplicateRegion   SEQ_HOM_MisAsDupRegion          N/A    hits overlap by 10 or more model positions
+R7.  R_UnacceptableModel SEQ_HOM_TaxNotArcBacChlSSUrRNA  N/A    best hit is to model other than SSU.Archaea, SSU.Bacteria,
                                                                 SSU.Cyanobacteria, or SSU.Chloroplast
-R8.  R_QuestionableModel SEQ_HOM_TaxChloroplast    N/A          best hit is to SSU.Chloroplast
-R9.  R_LowCoverage       SEQ_HOM_LowCoverage       N/A          coverage of all hits is < 0.88
-R10. R_MultipleHits      SEQ_HOM_MultipleHits      N/A          more than 1 hit reported
+R8.  R_QuestionableModel SEQ_HOM_TaxChloroplastSSUrRNA   N/A    best hit is to SSU.Chloroplast
+R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A    coverage of all hits is < 0.88
+R10. R_MultipleHits      SEQ_HOM_MultipleHits            N/A    more than 1 hit reported
 ---------
 
 The following list of GPIPE errors (listed in Ribosensor 'GPIPE output file') is relevant in the expected gpipe
@@ -444,18 +444,18 @@ whether an entire submission (typically comprising multiple sequences) succeeds 
 fails if any of the sequences in the submission fails.
 
 ---------
-idx  GPIPE error               fails to      triggering Sensor/Ribotyper errors
----  ------------------------- ---------     ----------------------------------
-G1.  SEQ_HOM_Not16SrRNA        submitter     S_NoHits*, R_NoHits
-G2.  SEQ_HOM_LowSimilarity     submitter     S_NoSimilarity*, S_LowSimilarity*, S_LowScore*, R_LowScore
-G3.  SEQ_HOM_16SAnd23SrRNA     submitter     R_MultipleFamilies
-G4.  SEQ_HOM_MisAsBothStrands  submitter     S_BothStrands, R_BothStrands
-G5.  SEQ_HOM_MisAsHitOrder     submitter     R_InconsistentHits
-G6.  SEQ_HOM_MisAsDupRegion    submitter     R_DuplicateRegion
-G7.  SEQ_HOM_TaxNotArcBacChl   submitter     R_UnacceptableModel
-G8.  SEQ_HOM_TaxChloroplast    indexer       R_QuestionableModel
-G9.  SEQ_HOM_LowCoverage       indexer       R_LowCoverage
-G10. SEQ_HOM_MultipleHits      indexer       S_MultipleHits, R_MultipleHits
+idx  GPIPE error                     fails to      triggering Sensor/Ribotyper errors
+---  ------------------------------  ---------     ----------------------------------
+G1.  SEQ_HOM_NotSSUOrLSUrRNA         submitter     S_NoHits*, R_NoHits
+G2.  SEQ_HOM_LowSimilarity           submitter     S_NoSimilarity*, S_LowSimilarity*, S_LowScore*, R_LowScore
+G3.  SEQ_HOM_SSUAndLSUrRNA           submitter     R_MultipleFamilies
+G4.  SEQ_HOM_MisAsBothStrands        submitter     S_BothStrands, R_BothStrands
+G5.  SEQ_HOM_MisAsHitOrder           submitter     R_InconsistentHits
+G6.  SEQ_HOM_MisAsDupRegion          submitter     R_DuplicateRegion
+G7.  SEQ_HOM_TaxNotArcBacChlSSUrRNA  submitter     R_UnacceptableModel
+G8.  SEQ_HOM_TaxChloroplastSSUrRNA   indexer       R_QuestionableModel
+G9.  SEQ_HOM_LowCoverage             indexer       R_LowCoverage
+G10. SEQ_HOM_MultipleHits            indexer       S_MultipleHits, R_MultipleHits
 
 * these Sensor errors do not trigger a GPIPE error if sequence is 'RPSF'
   (ribotyper pass, sensor fail) and sample is uncultured (-c option not

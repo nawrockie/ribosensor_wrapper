@@ -409,16 +409,16 @@ my @submitter_A    = ();   # array of human errors that fail to submitter rather
                  "R_InconsistentHits",
                  "R_MultipleHits");
 @gerror_A     = ("CLEAN",
-                 "SEQ_HOM_Not16SrRNA",
-                 "SEQ_HOM_16SAnd23SrRNA",
+                 "SEQ_HOM_NotSSUOrLSUrRNA",
+                 "SEQ_HOM_SSUAndLSUrRNA",
                  "SEQ_HOM_LowSimilarity",
                  "SEQ_HOM_LengthShort",
                  "SEQ_HOM_LengthLong",
                  "SEQ_HOM_MisAsBothStrands",
                  "SEQ_HOM_MisAsHitOrder",
                  "SEQ_HOM_MisAsDupRegion",
-                 "SEQ_HOM_TaxNotArcBacChl",
-                 "SEQ_HOM_TaxChloroplast",
+                 "SEQ_HOM_TaxNotArcBacChlSSUrRNA",
+                 "SEQ_HOM_TaxChloroplastSSUrRNA",
                  "SEQ_HOM_LowCoverage",
                  "SEQ_HOM_MultipleHits");
 
@@ -1131,7 +1131,7 @@ sub output_gpipe_line_without_fails_to {
 #                       values: counts of sequences
 #   $gerror_ct_HHR      ref to 2D hash of counts of gpipe errors
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
-#                       2D key: name of gpipe error (e.g. 'SEQ_HOM_Not16SrRNA')
+#                       2D key: name of gpipe error (e.g. 'SEQ_HOM_NotSSUOrLSUrRNA')
 #                       values: counts of sequences
 #   $RPSF_ignore_AR:    ref to array of errors to ignore if RPSF (ribotyper pass, sensor fail)
 #   $herror_failsto_HR: ref to hash explaining how each human error fails
@@ -2080,23 +2080,23 @@ sub define_gpipe_to_human_map {
   }
 
   # now fill in the map
-  #1.  SEQ_HOM_Not16SrRNA       submitter   S_NoHits(C), R_NoHits
-  #2.  SEQ_HOM_16SAnd23SrRNA    submitter   R_MultipleFamilies^
-  #3.  SEQ_HOM_LowSimilarity    submitter   S_NoSimilarity(C), S_LowSimilarity(C), S_LowScore(C), R_LowScore
-  #4.  SEQ_HOM_LengthShort      submitter   S_TooShort(C)^,R_TooShort
-  #5.  SEQ_HOM_LengthLong       submitter   S_TooLong(C)^,R_TooLong
-  #6.  SEQ_HOM_MisAsBothStrands submitter   S_BothStrands, R_BothStrands^
-  #7.  SEQ_HOM_MisAsHitOrder    submitter   R_InconsistentHits^ (not yet looked for by sensor)
-  #8.  SEQ_HOM_MisAsDupRegion   submitter   R_DuplicateRegion^  (not yet looked for by sensor)
-  #9.  SEQ_HOM_TaxNotArcBacChl  submitter   R_UnacceptableModel
-  #10. SEQ_HOM_TaxChloroplast   indexer     R_QuestionableModel
-  #11. SEQ_HOM_LowCoverage      indexer     R_LowCoverage^
-  #12. SEQ_HOM_MultipleHits     indexer     S_MultipleHits, R_MultipleHits^
+  #1.  SEQ_HOM_NotSSUOrLSUrRNA         submitter   S_NoHits(C), R_NoHits
+  #2.  SEQ_HOM_SSUAndLSUrRNA           submitter   R_MultipleFamilies^
+  #3.  SEQ_HOM_LowSimilarity           submitter   S_NoSimilarity(C), S_LowSimilarity(C), S_LowScore(C), R_LowScore
+  #4.  SEQ_HOM_LengthShort             submitter   S_TooShort(C)^,R_TooShort
+  #5.  SEQ_HOM_LengthLong              submitter   S_TooLong(C)^,R_TooLong
+  #6.  SEQ_HOM_MisAsBothStrands        submitter   S_BothStrands, R_BothStrands^
+  #7.  SEQ_HOM_MisAsHitOrder           submitter   R_InconsistentHits^ (not yet looked for by sensor)
+  #8.  SEQ_HOM_MisAsDupRegion          submitter   R_DuplicateRegion^  (not yet looked for by sensor)
+  #9.  SEQ_HOM_TaxNotArcBacChlSSUrRNA  submitter   R_UnacceptableModel
+  #10. SEQ_HOM_TaxChloroplastSSUrRNA   indexer     R_QuestionableModel
+  #11. SEQ_HOM_LowCoverage             indexer     R_LowCoverage^
+  #12. SEQ_HOM_MultipleHits            indexer     S_MultipleHits, R_MultipleHits^
 
-  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"S_NoHits"} = 1;
-  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"R_NoHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_NotSSUOrLSUrRNA"}{"S_NoHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_NotSSUOrLSUrRNA"}{"R_NoHits"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_16SAnd23SrRNA"}{"R_MultipleFamilies"} = 1;
+  $m2h_HHR->{"SEQ_HOM_SSUAndLSUrRNA"}{"R_MultipleFamilies"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_NoSimilarity"}  = 1;
   $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_LowSimilarity"} = 1;
@@ -2116,9 +2116,9 @@ sub define_gpipe_to_human_map {
 
   $m2h_HHR->{"SEQ_HOM_MisAsDupRegion"}{"R_DuplicateRegion"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChl"}{"R_UnacceptableModel"} = 1;
+  $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChlSSUrRNA"}{"R_UnacceptableModel"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_TaxChloroplast"}{"R_QuestionableModel"} = 1;
+  $m2h_HHR->{"SEQ_HOM_TaxChloroplastSSUrRNA"}{"R_QuestionableModel"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_LowCoverage"}{"R_LowCoverage"} = 1; 
 
