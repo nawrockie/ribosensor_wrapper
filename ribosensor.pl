@@ -313,7 +313,7 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $keep_opt        = (opt_Get("--keep", \%opt_HH)) ? "--keep" : "";
-my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail --tshortcov 0.80 --tshortlen 350 $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
 if(! opt_Get("--skipsearch", \%opt_HH)) { 
