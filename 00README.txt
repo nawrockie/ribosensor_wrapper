@@ -455,11 +455,13 @@ G6.  SEQ_HOM_MisAsDupRegion          submitter     R_DuplicateRegion
 G7.  SEQ_HOM_TaxNotArcBacChlSSUrRNA  submitter     R_UnacceptableModel
 G8.  SEQ_HOM_TaxChloroplastSSUrRNA   indexer       R_QuestionableModel
 G9.  SEQ_HOM_LowCoverage             indexer       R_LowCoverage
-G10. SEQ_HOM_MultipleHits            indexer       S_MultipleHits, R_MultipleHits
+G10. SEQ_HOM_MultipleHits            indexer       S_MultipleHits, R_MultipleHits+
 
 * these Sensor errors do not trigger a GPIPE error if sequence is 'RPSF'
   (ribotyper pass, sensor fail) and sample is uncultured (-c option not
   used with ribosensor_wrapper.pl).
++ this Ribotyper error does not trigger a GPIPE error if sequence is 'RFSP'
+  (ribotyper fail, sensor pass)
 ---------
 
 For more information on ribotyper errors which are reported prefixed
@@ -477,7 +479,7 @@ A few important points about the lists of errors above:
 
 - A GPIPE error is triggered by one or more occurrences of its
   triggering Sensor/Ribotyper errors (with the exception listed above
-  for '*').
+  for '*' and '+').
 
 - This definition of Sensor/Ribotyper errors and the GPIPE errors they
   trigger is slightly different from the most recent Confluence
