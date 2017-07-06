@@ -436,7 +436,7 @@ R6.  R_DuplicateRegion   SEQ_HOM_MisAsDupRegion          N/A         no         
 R7.  R_UnacceptableModel SEQ_HOM_TaxNotArcBacChlSSUrRNA  N/A         no          no  best hit is to model other than SSU.Archaea, SSU.Bacteria,
                                                                                      SSU.Cyanobacteria, or SSU.Chloroplast
 R8.  R_QuestionableModel SEQ_HOM_TaxChloroplastSSUrRNA   N/A         no          no  best hit is to SSU.Chloroplast
-R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A         no          no  coverage of all hits is < 0.88
+R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A         no          no  coverage of all hits is < 0.80 (<=350nt) or 0.86 (>350nt)
 R10. R_MultipleHits      SEQ_HOM_MultipleHits            N/A        yes          no  more than 1 hit reported
 ---------
 
