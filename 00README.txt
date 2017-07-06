@@ -1,4 +1,4 @@
-Ribosensor v0.17 README
+Ribosensor v0.18 README
 
 Organization of this file:
 
@@ -248,7 +248,7 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.17 (July 2017)
+# ribosensor 0.18 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Thu Jul  6 09:03:18 2017
 #
@@ -449,7 +449,7 @@ fails if any of the sequences in the submission fails.
 idx  GPIPE error                     fails to      triggering Sensor/Ribotyper errors
 ---  ------------------------------  ---------     ----------------------------------
 G1.  SEQ_HOM_NotSSUOrLSUrRNA         submitter     S_NoHits*^, R_NoHits
-G2.  SEQ_HOM_LowSimilarity           submitter     S_NoSimilarity*&, S_LowSimilarity*&, S_LowScore*&, R_LowScore
+G2.  SEQ_HOM_LowSimilarity           submitter     S_NoSimilarity*^, S_LowSimilarity*^, S_LowScore*^, R_LowScore
 G3.  SEQ_HOM_SSUAndLSUrRNA           submitter     R_MultipleFamilies
 G4.  SEQ_HOM_MisAsBothStrands        submitter     S_BothStrands, R_BothStrands
 G5.  SEQ_HOM_MisAsHitOrder           submitter     R_InconsistentHits
@@ -466,13 +466,10 @@ G10. SEQ_HOM_MultipleHits            indexer       S_MultipleHits, R_MultipleHit
 + this Ribotyper error (R_MultipleHits) does not trigger a GPIPE error
   if sequence is 'RFSP' (ribotyper fail, sensor pass)
 
-^ this Sensor error (S_NoHits) does not trigger a GPIPE error if
-  sequence is 'RFSF' (ribotyper fail, sensor fail) and
-  R_UnacceptableModel or R_QuestionableModel also exist 
+^ these Sensor errors (S_NoHits, S_NoSimilarity, S_LowSimilarity,
+  S_LowScore) do not trigger a GPIPE error if sequence is 'RFSF'
+  (ribotyper fail, sensor fail) and R_UnacceptableModel also exists
 
-& these Sensor errors (S_NoSimilarity, S_LowSimilarity, S_LowScore) 
-  do not trigger a GPIPE error if sequence is 'RFSF' (ribotyper fail,
-  sensor fail) and R_UnacceptableModel also exists
 ---------
 
 For more information on ribotyper errors which are reported prefixed
@@ -490,7 +487,7 @@ A few important points about the lists of errors above:
 
 - A GPIPE error is triggered by one or more occurrences of its
   triggering Sensor/Ribotyper errors (with the exception listed above
-  for '*', '+', '^' and '&').
+  for '*', '+', and '^').
 
 - This definition of Sensor/Ribotyper errors and the GPIPE errors they
   trigger is slightly different from the most recent Confluence
@@ -513,7 +510,7 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.17 (July 2017)
+# ribosensor 0.18 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Thu Jul  6 09:05:37 2017
 #
