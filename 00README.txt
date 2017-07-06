@@ -1,4 +1,4 @@
-Ribosensor v0.18 README
+Ribosensor v0.19 README
 
 Organization of this file:
 
@@ -248,7 +248,7 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.18 (July 2017)
+# ribosensor 0.19 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Thu Jul  6 09:03:18 2017
 #
@@ -464,11 +464,12 @@ G10. SEQ_HOM_MultipleHits            indexer       S_MultipleHits, R_MultipleHit
   used with ribosensor_wrapper.pl).
 
 + this Ribotyper error (R_MultipleHits) does not trigger a GPIPE error
-  if sequence is 'RFSP' (ribotyper fail, sensor pass)
+  if sequence is 'RFSP' (ribotyper fail, sensor pass).
 
 ^ these Sensor errors (S_NoHits, S_NoSimilarity, S_LowSimilarity,
   S_LowScore) do not trigger a GPIPE error if sequence is 'RFSF'
-  (ribotyper fail, sensor fail) and R_UnacceptableModel also exists
+  (ribotyper fail, sensor fail) and R_UnacceptableModel or
+  R_QuestionableModel also exists.
 
 ---------
 
@@ -510,7 +511,7 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.18 (July 2017)
+# ribosensor 0.19 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # date:    Thu Jul  6 09:05:37 2017
 #
