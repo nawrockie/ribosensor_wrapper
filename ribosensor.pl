@@ -107,8 +107,8 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.16";
-my $releasedate   = "June 2017";
+my $version       = "0.17";
+my $releasedate   = "July 2017";
 my $package_name  = "ribosensor";
 
 # make *STDOUT file handle 'hot' so it automatically flushes whenever we print to it
@@ -313,7 +313,7 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $keep_opt        = (opt_Get("--keep", \%opt_HH)) ? "--keep" : "";
-my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail $seq_file $ribo_dir_out > $ribo_stdoutfile";
+my $ribotyper_cmd   = $execs_H{"ribo"} . " -f $keep_opt -n $ncpu --inaccept $ribo_model_dir/ssu.arc.bac.accept --scfail --covfail --tshortcov 0.80 --tshortlen 350 $seq_file $ribo_dir_out > $ribo_stdoutfile";
 my $ribo_secs       = 0.; # total number of seconds required for ribotyper command
 my $ribo_shortfile  = $ribo_dir_out . "/ribo-out.ribotyper.short.out";
 if(! opt_Get("--skipsearch", \%opt_HH)) { 
@@ -384,6 +384,11 @@ my %gerror_ct_HH   = ();   # 2D hash of counts of 'gpipe' error types,
                            # value is count
 my @RPSF_ignore_A  = ();   # array of human errors to ignore for sequences that pass ribotyper and
                            # fail sensor (RPSF)
+my @RFSP_ignore_A  = ();   # array of human errors to ignore for sequences that fail ribotyper and
+                           # pass sensor (RFSP)
+my %RFSF_ignore_HA = ();   # hash of arrays, hash key: human error 1, value is array, where each element
+                           # is human error 2..N. If human error 2..N is observed, then ignore human 
+                           # error 1 if sequence fails both ribotyper and sensor (RFSF)
 my @indexer_A      = ();   # array of human errors that fail to indexer rather than submitter
 my @submitter_A    = ();   # array of human errors that fail to submitter rather than indexer
 
@@ -409,24 +414,35 @@ my @submitter_A    = ();   # array of human errors that fail to submitter rather
                  "R_InconsistentHits",
                  "R_MultipleHits");
 @gerror_A     = ("CLEAN",
-                 "SEQ_HOM_Not16SrRNA",
-                 "SEQ_HOM_16SAnd23SrRNA",
+                 "SEQ_HOM_NotSSUOrLSUrRNA",
+                 "SEQ_HOM_SSUAndLSUrRNA",
                  "SEQ_HOM_LowSimilarity",
                  "SEQ_HOM_LengthShort",
                  "SEQ_HOM_LengthLong",
                  "SEQ_HOM_MisAsBothStrands",
                  "SEQ_HOM_MisAsHitOrder",
                  "SEQ_HOM_MisAsDupRegion",
-                 "SEQ_HOM_TaxNotArcBacChl",
-                 "SEQ_HOM_TaxChloroplast",
+                 "SEQ_HOM_TaxNotArcBacChlSSUrRNA",
+                 "SEQ_HOM_TaxChloroplastSSUrRNA",
                  "SEQ_HOM_LowCoverage",
                  "SEQ_HOM_MultipleHits");
 
-# hard-coded list of errors that we fail if ribotyper passes and -c not used
+# hard-coded list of errors that we ignore when triggering GPIPE errors if sequence is RPSF and -c not used
 @RPSF_ignore_A = ("S_NoHits", 
                   "S_LowScore",
                   "S_NoSimilarity",
                   "S_LowSimilarity");
+
+# hard-coded list of errors that we ignore when triggering GPIPE errors if sequence is RFSP
+@RFSP_ignore_A = ("R_MultipleHits");
+
+# hard-coded list of errors that we ignore (if other errors are also observed) when triggering 
+# GPIPE errors if sequence is RFSF, key is error to ignore, value is array of other errors, if 
+# any of the other errors are present we ignore the key error
+@{$RFSF_ignore_HA{"S_NoHits"}}        = ("R_UnacceptableModel", "R_QuestionableModel");
+@{$RFSF_ignore_HA{"S_NoSimilarity"}}  = ("R_UnacceptableModel", "R_QuestionableModel");
+@{$RFSF_ignore_HA{"S_LowSimilarity"}} = ("R_UnacceptableModel", "R_QuestionableModel");
+@{$RFSF_ignore_HA{"S_LowScore"}}      = ("R_UnacceptableModel", "R_QuestionableModel");
 
 # hard-coded list of errors that fail to the indexer, all others fail to the submitter
 @indexer_A  = ("R_QuestionableModel", 
@@ -473,7 +489,9 @@ output_headers_without_fails_to($combined_gpipe_FH, \%width_H);
 combine_gpipe_files($combined_out_FH, $combined_gpipe_FH, $sensor_indi_file, $ribo_indi_file, 
                     \@gerror_A, \%gpipe2human_HH, \%outcome_ct_HH, 
                     \%herror_ct_HH, \%gerror_ct_HH, 
-                    (opt_Get("-c", \%opt_HH) ? undef : \@RPSF_ignore_A), # only ignore some errors if -c not used
+                    (opt_Get("-c", \%opt_HH) ? undef : \@RPSF_ignore_A), # only ignore some sensor errors if -c not used
+                    \@RFSP_ignore_A,  # list of ribotyper errors to ignore if sensor pass
+                    \%RFSF_ignore_HA, # list of errors to ignore if RFSF, if other errors are observed
                     \%herror_failsto_H, \%width_H, \%opt_HH);
 output_tail_with_fails_to   ($combined_out_FH,   \%opt_HH); 
 output_tail_without_fails_to($combined_gpipe_FH, \%opt_HH); 
@@ -1131,9 +1149,13 @@ sub output_gpipe_line_without_fails_to {
 #                       values: counts of sequences
 #   $gerror_ct_HHR      ref to 2D hash of counts of gpipe errors
 #                       1D key: "RPSP", "RPSF", "RFSP", "RFSF", "*all*"
-#                       2D key: name of gpipe error (e.g. 'SEQ_HOM_Not16SrRNA')
+#                       2D key: name of gpipe error (e.g. 'SEQ_HOM_NotSSUOrLSUrRNA')
 #                       values: counts of sequences
-#   $RPSF_ignore_AR:    ref to array of errors to ignore if RPSF (ribotyper pass, sensor fail)
+#   $RPSF_ignore_AR:    ref to array of sensor    errors to ignore if RPSF (ribotyper pass, sensor fail)
+#   $RFSP_ignore_AR:    ref to array of ribotyper errors to ignore if RFSP (ribotyper fail, sensor pass)
+#   $RFSF_ignore_HAR:   ref to hash of arrays of errors to ignore if RFSF (ribotyper fail, sensor pass)
+#                       and other errors are observed. Key is error to ignore, value is list of other
+#                       errors, if any of the other errors are observed we ignore the key error.
 #   $herror_failsto_HR: ref to hash explaining how each human error fails
 #   $width_HR:          ref to hash with max lengths of sequence index, target, and classifications
 #   $opt_HHR:           ref to 2D hash of cmdline options
@@ -1144,10 +1166,10 @@ sub output_gpipe_line_without_fails_to {
 #
 ################################################################# 
 sub combine_gpipe_files { 
-  my $nargs_expected = 13;
+  my $nargs_expected = 15;
   my $sub_name = "combine_gpipe_files";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($out_FH, $gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, $gerror_AR, $g2h_HHR, $outcome_ct_HHR, $herror_ct_HHR, $gerror_ct_HHR, $RPSF_ignore_AR, $herror_failsto_HR, $width_HR, $opt_HHR) = (@_);
+  my ($out_FH, $gpipe_FH, $sensor_gpipe_file, $ribo_gpipe_file, $gerror_AR, $g2h_HHR, $outcome_ct_HHR, $herror_ct_HHR, $gerror_ct_HHR, $RPSF_ignore_AR, $RFSP_ignore_AR, $RFSF_ignore_HAR, $herror_failsto_HR, $width_HR, $opt_HHR) = (@_);
 
   my @sel_A    = ();    # array of elements on a sensor line
   my @rel_A    = ();    # array of elements on a ribotyper line
@@ -1160,6 +1182,7 @@ sub combine_gpipe_files {
   my ($spassfail, $rpassfail, $passfail); # a sensor, ribotyper, and combined pass/fail string
   my ($sfailmsg,  $rfailmsg,  $failmsg);  # a sensor, ribotyper, and combined output failure message
   my $doctored_failmsg;     # combined failmsg with errors to ignore removed
+  my $found_reqd_error;     # '1' if we find a required error necessary for ignoring a different error (for processing %RFSF_ignore_HAR)
   my $gpipe_failmsg;        # doctored_failmsg converted to gpipe errors
   my $i;                    # a counter
   my $slidx    = 0;         # line number in sensor file we're currently on
@@ -1170,6 +1193,7 @@ sub combine_gpipe_files {
   my $out_lidx = 0;         # number of lines output
   my $failsto_str  = undef; # string of where sequence fails to ('indexer' or 'submitter') or 'pass' or 'unmapped'
   my $error = undef;        # a single error
+  my $error2 = undef;       # a different single error
 
   open(SIN, $sensor_gpipe_file) || die "ERROR unable to open $sensor_gpipe_file for reading in $sub_name"; 
   open(RIN, $ribo_gpipe_file)   || die "ERROR unable to open $ribo_gpipe_file for reading in $sub_name"; 
@@ -1239,13 +1263,41 @@ sub combine_gpipe_files {
       elsif($sfailmsg eq "-" && $rfailmsg ne "-") { $failmsg = $rfailmsg; }
       elsif($sfailmsg ne "-" && $rfailmsg ne "-") { $failmsg = $sfailmsg . $rfailmsg; }
 
-      # look for special cases: if passfail is "RPSF" then we ignore S_NoHits, S_NoSimilarity, S_LowSimilarity, and S_LowScore
+      # look for special cases: 
+      # 1. if passfail is "RPSF" then we ignore S_NoHits, S_NoSimilarity, S_LowSimilarity, and S_LowScore (stored in @{$RPSF_ignore_AR})
+      # 2. if passfail is "RFSP" then we ignore R_MultipleHits (stored in @{$RFSP_ignore_AR})
+      # 3. if passfail is "RFSF" then we ignore S_NoHits, S_NoSimilarity, S_LowSimilarity, S_LowScore IF 
+      #                          R_UnacceptableModel or R_QuestionableModel also observed (stored in @{$RFSP_ignore_AR})
       $doctored_failmsg = $failmsg;
       if($passfail eq "RPSF") { 
         foreach $error (@{$RPSF_ignore_AR}) { 
           $doctored_failmsg =~ s/$error\;//;
         }
         if($doctored_failmsg eq "") { $doctored_failmsg = "-"; }
+      }
+      if($passfail eq "RFSP") { 
+        foreach $error (@{$RFSP_ignore_AR}) { 
+          $doctored_failmsg =~ s/$error\:\(.+\)\;//; # remember to match the extra description of the error in ()
+          $doctored_failmsg =~ s/$error\;//;         # match the error if it is lacking a description
+        }
+        if($doctored_failmsg eq "") { $doctored_failmsg = "-"; }
+      }
+      if($passfail eq "RFSF") { 
+        foreach $error (sort keys (%{$RFSF_ignore_HAR})) { 
+          # first determine if we have a match to any of the errors in @{$RFSF_ignore_HAR->{$error}}
+          $found_reqd_error = 0;
+          foreach $error2 (@{$RFSF_ignore_HAR->{$error}}) { 
+            if($doctored_failmsg =~ m/$error2/) { 
+              $found_reqd_error = 1;
+              last;
+            }
+          }
+          if($found_reqd_error) { 
+            # now remove $error if it exists (not $error2)
+            $doctored_failmsg =~ s/$error\:\(.+\)\;//; # remember to match the extra description of the error in ()
+            $doctored_failmsg =~ s/$error\;//;         # match the error if it is lacking a description
+          }
+        }
       }
       $gpipe_failmsg = human_to_gpipe_fail_message($doctored_failmsg, $g2h_HHR, $gerror_AR);
 
@@ -2080,23 +2132,23 @@ sub define_gpipe_to_human_map {
   }
 
   # now fill in the map
-  #1.  SEQ_HOM_Not16SrRNA       submitter   S_NoHits(C), R_NoHits
-  #2.  SEQ_HOM_16SAnd23SrRNA    submitter   R_MultipleFamilies^
-  #3.  SEQ_HOM_LowSimilarity    submitter   S_NoSimilarity(C), S_LowSimilarity(C), S_LowScore(C), R_LowScore
-  #4.  SEQ_HOM_LengthShort      submitter   S_TooShort(C)^,R_TooShort
-  #5.  SEQ_HOM_LengthLong       submitter   S_TooLong(C)^,R_TooLong
-  #6.  SEQ_HOM_MisAsBothStrands submitter   S_BothStrands, R_BothStrands^
-  #7.  SEQ_HOM_MisAsHitOrder    submitter   R_InconsistentHits^ (not yet looked for by sensor)
-  #8.  SEQ_HOM_MisAsDupRegion   submitter   R_DuplicateRegion^  (not yet looked for by sensor)
-  #9.  SEQ_HOM_TaxNotArcBacChl  submitter   R_UnacceptableModel
-  #10. SEQ_HOM_TaxChloroplast   indexer     R_QuestionableModel
-  #11. SEQ_HOM_LowCoverage      indexer     R_LowCoverage^
-  #12. SEQ_HOM_MultipleHits     indexer     S_MultipleHits, R_MultipleHits^
+  #1.  SEQ_HOM_NotSSUOrLSUrRNA         submitter   S_NoHits(C), R_NoHits
+  #2.  SEQ_HOM_SSUAndLSUrRNA           submitter   R_MultipleFamilies^
+  #3.  SEQ_HOM_LowSimilarity           submitter   S_NoSimilarity(C), S_LowSimilarity(C), S_LowScore(C), R_LowScore
+  #4.  SEQ_HOM_LengthShort             submitter   S_TooShort(C)^,R_TooShort
+  #5.  SEQ_HOM_LengthLong              submitter   S_TooLong(C)^,R_TooLong
+  #6.  SEQ_HOM_MisAsBothStrands        submitter   S_BothStrands, R_BothStrands^
+  #7.  SEQ_HOM_MisAsHitOrder           submitter   R_InconsistentHits^ (not yet looked for by sensor)
+  #8.  SEQ_HOM_MisAsDupRegion          submitter   R_DuplicateRegion^  (not yet looked for by sensor)
+  #9.  SEQ_HOM_TaxNotArcBacChlSSUrRNA  submitter   R_UnacceptableModel
+  #10. SEQ_HOM_TaxChloroplastSSUrRNA   indexer     R_QuestionableModel
+  #11. SEQ_HOM_LowCoverage             indexer     R_LowCoverage^
+  #12. SEQ_HOM_MultipleHits            indexer     S_MultipleHits, R_MultipleHits^
 
-  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"S_NoHits"} = 1;
-  $m2h_HHR->{"SEQ_HOM_Not16SrRNA"}{"R_NoHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_NotSSUOrLSUrRNA"}{"S_NoHits"} = 1;
+  $m2h_HHR->{"SEQ_HOM_NotSSUOrLSUrRNA"}{"R_NoHits"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_16SAnd23SrRNA"}{"R_MultipleFamilies"} = 1;
+  $m2h_HHR->{"SEQ_HOM_SSUAndLSUrRNA"}{"R_MultipleFamilies"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_NoSimilarity"}  = 1;
   $m2h_HHR->{"SEQ_HOM_LowSimilarity"}{"S_LowSimilarity"} = 1;
@@ -2116,9 +2168,9 @@ sub define_gpipe_to_human_map {
 
   $m2h_HHR->{"SEQ_HOM_MisAsDupRegion"}{"R_DuplicateRegion"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChl"}{"R_UnacceptableModel"} = 1;
+  $m2h_HHR->{"SEQ_HOM_TaxNotArcBacChlSSUrRNA"}{"R_UnacceptableModel"} = 1;
 
-  $m2h_HHR->{"SEQ_HOM_TaxChloroplast"}{"R_QuestionableModel"} = 1;
+  $m2h_HHR->{"SEQ_HOM_TaxChloroplastSSUrRNA"}{"R_QuestionableModel"} = 1;
 
   $m2h_HHR->{"SEQ_HOM_LowCoverage"}{"R_LowCoverage"} = 1; 
 
