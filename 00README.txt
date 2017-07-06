@@ -1,4 +1,4 @@
-Ribosensor v0.16 README
+Ribosensor v0.17 README
 
 Organization of this file:
 
@@ -248,17 +248,17 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.15 (June 2017)
+# ribosensor 0.17 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Jun 22 15:25:14 2017
+# date:    Thu Jul  6 09:03:18 2017
 #
 # target sequence input file:  example-16.fa
 # output directory name:       test         
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.5 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.1 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [0.8 seconds]
+# Running ribotyper on full sequence file               ... done. [3.3 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [0.9 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -289,24 +289,24 @@ Example output of the script from the above command
 #
 # GPIPE error counts:
 #
-#                          number   fraction
-# error                    of seqs   of seqs
-# -----------------------  -------  --------
-  CLEAN                          9   0.56250
-  SEQ_HOM_NotSSUOrLSUrRNA             2   0.12500
-  SEQ_HOM_LowSimilarity          4   0.25000
-  SEQ_HOM_LengthLong             1   0.06250
-  SEQ_HOM_TaxNotArcBacChl16SrRNA        5   0.31250
-  SEQ_HOM_LowCoverage            1   0.06250
+#                                 number   fraction
+# error                           of seqs   of seqs
+# ------------------------------  -------  --------
+  CLEAN                                 9   0.56250
+  SEQ_HOM_NotSSUOrLSUrRNA               1   0.06250
+  SEQ_HOM_LowSimilarity                 1   0.06250
+  SEQ_HOM_LengthLong                    1   0.06250
+  SEQ_HOM_TaxNotArcBacChlSSUrRNA        5   0.31250
+  SEQ_HOM_LowCoverage                   1   0.06250
 #
 #
 # Timing statistics:
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.6      6156.8      6156.8  00:00:03.45  (hh:mm:ss)
-  sensor           16     16.4     21828.8     21828.8  00:00:00.97  (hh:mm:ss)
-  total            16      3.5      4682.0      4682.0  00:00:04.54  (hh:mm:ss)
+  ribotyper        16      4.9      6514.3      6514.3  00:00:03.26  (hh:mm:ss)
+  sensor           16     15.2     20224.7     20224.7  00:00:01.05  (hh:mm:ss)
+  total            16      3.6      4774.2      4774.2  00:00:04.45  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -335,7 +335,7 @@ $ cat testfiles/test.ribosensor.out
 1     00052::Halobacterium_sp.::AE005128             SSU.Archaea            plus               RPSP       pass  -
 2     00013::Methanobacterium_formicicum::M36508     SSU.Archaea            plus               RPSP       pass  -
 3     00004::Nanoarchaeum_equitans::AJ318041         SSU.Archaea            plus               RPSF       pass  S_LowScore;
-4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.880);
+4     00121::Thermococcus_celer::M21529              SSU.Archaea            plus               RFSF  submitter  S_LowSimilarity;R_LowCoverage:(0.835<0.860);
 5     random                                         -                      NA                 RFSF  submitter  S_NoHits;R_NoHits;
 6     00115::Pyrococcus_furiosus::U20163|g643670     SSU.Archaea            minus              RPSP       pass  -
 7     00035::Bacteroides_fragilis::M61006|g143965    SSU.Bacteria           plus               RPSP       pass  -
@@ -385,11 +385,11 @@ $ cat testfiles/test.ribosensor.gpipe
 9     00072::Chlamydia_trachomatis.::AE001345        SSU.Bacteria           plus               RPSP  -
 10    01351::Mycoplasma_gallisepticum::M22441        SSU.Bacteria           minus              RPSP  -
 11    00224::Rickettsia_prowazekii.::AJ235272        SSU.Bacteria           plus               RPSP  -
-12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl16SrRNA;
-13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl16SrRN;
-14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_NotSSUOrLSUrRNA;SEQ_HOM_TaxNotArcBacChl;
-15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  SEQ_HOM_LowSimilarity;SEQ_HOM_TaxNotArcBacChl;
-16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  SEQ_HOM_LengthLong;SEQ_HOM_TaxNotArcBacChl;
+12    01223::Audouinella_hermannii.::AF026040        SSU.Eukarya            plus               RFSF  SEQ_HOM_TaxNotArcBacChlSSUrRNA;
+13    01240::Batrachospermum_gelatinosum.::AF026045  SSU.Eukarya            plus               RFSF  SEQ_HOM_TaxNotArcBacChlSSUrRNA;
+14    00220::Euplotes_aediculatus.::M14590           SSU.Eukarya            plus               RFSF  SEQ_HOM_TaxNotArcBacChlSSUrRNA;
+15    00229::Oxytricha_granulifera.::AF164122        SSU.Eukarya            minus              RFSF  SEQ_HOM_TaxNotArcBacChlSSUrRNA;
+16    01710::Oryza_sativa.::X00755                   SSU.Eukarya            plus               RFSF  SEQ_HOM_LengthLong;SEQ_HOM_TaxNotArcBacChlSSUrRNA;
 #
 # Explanation of columns:
 #
@@ -490,7 +490,7 @@ A few important points about the lists of errors above:
 
 - A GPIPE error is triggered by one or more occurrences of its
   triggering Sensor/Ribotyper errors (with the exception listed above
-  for '*' and '+').
+  for '*', '+', '^' and '&').
 
 - This definition of Sensor/Ribotyper errors and the GPIPE errors they
   trigger is slightly different from the most recent Confluence
@@ -503,7 +503,7 @@ A few important points about the lists of errors above:
   output.  
   
   B) reporting GPIPE errors in the format that Alex Kotliarov asked for
-  at the May 15 meeting.
+  at the May 15 Foosh meeting.
 
 ##############################################################################
 ALL COMMAND LINE OPTIONS
@@ -511,10 +511,11 @@ ALL COMMAND LINE OPTIONS
 To see all the available command-line options to ribosensor.pl, call
 it with the -h option:
 
+> ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.16 (June 2017)
+# ribosensor 0.17 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Jun 22 15:44:23 2017
+# date:    Thu Jul  6 09:05:37 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
