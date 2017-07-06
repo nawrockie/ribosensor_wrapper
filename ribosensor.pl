@@ -107,7 +107,7 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.19";
+my $version       = "0.20";
 my $releasedate   = "July 2017";
 my $package_name  = "ribosensor";
 
@@ -1056,8 +1056,8 @@ sub convert_ribo_short_to_indi_file {
 #   $strand:             strand value
 #   $passfail:           "PASS" or "FAIL"
 #   $failmsg:            failure message
-#   $ignore_AR:          ref to array of error messages to ignore when determining
-#                        pass/fail (can be undefined to not ignore any)
+#   $doctored_failmsg:   failure message with any errors that we should ignore 
+#                        for purposes of pass/failure removed
 #   $herror_failsto_HR:  ref to hash explaining how each human error fails
 #   $width_HR:           ref to hash with max lengths of sequence index and target
 #   $opt_HHR:            ref to 2D hash of cmdline options
@@ -1071,11 +1071,11 @@ sub output_gpipe_line_with_fails_to {
   my $nargs_expected = 11;
   my $sub_name = "output_gpipe_line_with_fails_to";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $ignore_AR, $herror_failsto_HR, $width_HR, $opt_HHR) = (@_);
+  my ($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $doctored_failmsg, $herror_failsto_HR, $width_HR, $opt_HHR) = (@_);
 
   my $failsto = "";
 
-  $failsto = determine_fails_to_string($failmsg, $ignore_AR, $herror_failsto_HR, $opt_HHR);
+  $failsto = determine_fails_to_string($doctored_failmsg, $herror_failsto_HR, $opt_HHR);
   printf $FH ("%-*d  %-*s  %-*s  %-*s  %4s  %9s  %s\n", 
               $width_HR->{"index"},    $idx, 
               $width_HR->{"target"},   $seqid, 
@@ -1301,8 +1301,7 @@ sub combine_gpipe_files {
       }
       $gpipe_failmsg = human_to_gpipe_fail_message($doctored_failmsg, $g2h_HHR, $gerror_AR);
 
-      $failsto_str = output_gpipe_line_with_fails_to($out_FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, 
-                                                     ($passfail eq "RPSF") ? $RPSF_ignore_AR : undef, # only ignore certain errors if RPSF
+      $failsto_str = output_gpipe_line_with_fails_to($out_FH, $sidx, $sseqid, $rclass, $strand, $passfail, $failmsg, $doctored_failmsg,
                                                      $herror_failsto_HR, $width_HR, $opt_HHR); 
       output_gpipe_line_without_fails_to($gpipe_FH, $sidx, $sseqid, $rclass, $strand, $passfail, $gpipe_failmsg, $width_HR, $opt_HHR); 
 
@@ -1360,8 +1359,6 @@ sub combine_gpipe_files {
 #             
 # Arguments: 
 #   $failmsg:            all human readable errors separated by ";"
-#   $ignore_AR:          ref to array of errors to ignore 
-#                        when determining pass/fail
 #   $herror_failsto_HR:  ref to hash explaining how each human error fails
 #   $opt_HHR:            ref to 2D hash of cmdline options
 #
@@ -1371,12 +1368,11 @@ sub combine_gpipe_files {
 #
 ################################################################# 
 sub determine_fails_to_string { 
-  my $nargs_expected = 4;
+  my $nargs_expected = 3;
   my $sub_name = "determine_fails_to_string";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
-  my ($failmsg, $ignore_AR, $herror_failsto_HR, $opt_HHR) = (@_);
+  my ($failmsg, $herror_failsto_HR, $opt_HHR) = (@_);
 
-  my $doctored_failmsg = $failmsg;
   my $to_ignore     = undef;
   my $indexer_error = undef;  # an indexer error
   my $found_submitter = 0; # set to TRUE if we see an submitter error
@@ -1389,19 +1385,10 @@ sub determine_fails_to_string {
   if($failmsg eq "-") { 
     return "pass";
   }
-
-  if(defined $ignore_AR) { 
-    foreach $to_ignore (@{$ignore_AR}) { 
-      $doctored_failmsg =~ s/$to_ignore\;//;
-    }
-  }
-  if($doctored_failmsg eq "") { # we removed all errors
-    return "pass";
-  }
   else { 
     # look at each error and determine if we have >= 1 submitter errors ($found_submitter)
     # and >= 1 indexer errors ($found_indexer)
-    @error_A = split(";", $doctored_failmsg);
+    @error_A = split(";", $failmsg);
     foreach $error (@error_A) { 
       $error_stripped = $error;
       $error_stripped =~ s/\:.+$//; # remove ':' and everything after (the sequence specific information)

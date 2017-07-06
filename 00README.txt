@@ -1,4 +1,4 @@
-Ribosensor v0.19 README
+Ribosensor v0.20 README
 
 Organization of this file:
 
@@ -248,17 +248,17 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.19 (July 2017)
+# ribosensor 0.20 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Jul  6 09:03:18 2017
+# date:    Thu Jul  6 11:38:26 2017
 #
 # target sequence input file:  example-16.fa
 # output directory name:       test         
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.3 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [0.9 seconds]
+# Running ribotyper on full sequence file               ... done. [3.1 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [0.1 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [0.7 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -304,9 +304,9 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.9      6514.3      6514.3  00:00:03.26  (hh:mm:ss)
-  sensor           16     15.2     20224.7     20224.7  00:00:01.05  (hh:mm:ss)
-  total            16      3.6      4774.2      4774.2  00:00:04.45  (hh:mm:ss)
+  ribotyper        16      5.2      6947.3      6947.3  00:00:03.06  (hh:mm:ss)
+  sensor           16     19.0     25234.4     25234.4  00:00:00.84  (hh:mm:ss)
+  total            16      4.0      5292.4      5292.4  00:00:04.02  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -436,7 +436,7 @@ R6.  R_DuplicateRegion   SEQ_HOM_MisAsDupRegion          N/A         no         
 R7.  R_UnacceptableModel SEQ_HOM_TaxNotArcBacChlSSUrRNA  N/A         no          no  best hit is to model other than SSU.Archaea, SSU.Bacteria,
                                                                                      SSU.Cyanobacteria, or SSU.Chloroplast
 R8.  R_QuestionableModel SEQ_HOM_TaxChloroplastSSUrRNA   N/A         no          no  best hit is to SSU.Chloroplast
-R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A         no          no  coverage of all hits is < 0.88
+R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A         no          no  coverage of all hits is < 0.80 (<=350nt) or 0.86 (>350nt)
 R10. R_MultipleHits      SEQ_HOM_MultipleHits            N/A        yes          no  more than 1 hit reported
 ---------
 
@@ -511,9 +511,9 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.19 (July 2017)
+# ribosensor 0.20 (July 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Jul  6 09:05:37 2017
+# date:    Thu Jul  6 11:39:29 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
