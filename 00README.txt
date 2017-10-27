@@ -1,9 +1,12 @@
-Ribosensor v0.21 README
+EPN, Fri Oct 27 12:59:34 2017
+
+Ribosensor v0.21 00README.txt
 
 Organization of this file:
 
 INTRO
 SETTING UP ENVIRONMENT VARIABLES
+PREREQUISITE PROGRAMS
 WHAT RIBOSENSOR DOES
 SAMPLE RUN
 OUTPUT
@@ -15,42 +18,66 @@ GETTING MORE INFORMATION
 INTRO
 
 This is documentation for ribosensor, a tool for detecting and
-classifying SSU rRNA and LSU rRNA sequences that uses profile HMMs and
+classifying small subunit (SSU) and large subunit (LSU) rRNA
+sequences.  ribosensor uses profile hidden markov models (HMMs) and
 BLASTN.
 
-Authors: Eric Nawrocki and Alejandro Scaffer
+Authors: Eric Nawrocki and Alejandro Schaffer
+National Center for Biotechnology Information 
 
 Current location of code and other relevant files:
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/
 
 The initial setup of ribosensor is intended for internal NCBI usage in
 evaluating submissions. It is expected that ribosensor will be
-incorporated into the internal NCBI software architecture called
-gpipe. Therefore, at this time, some of the documentation is on
-internal Confluence pages and some of the error reporting is
-structured in a manner that conforms to established gpipe practices
-for error reporting.
+incorporated into the internal National Center for Biotechnology
+Information (NCBI) software architecture called gpipe. Therefore, at
+this time, some of the documentation is on internal Confluence pages,
+some of the instructions below are specifically for usage within NCBI,
+and some of the error reporting is structured in a manner that
+conforms to established gpipe practices for error reporting. The
+intended usage of ribosensor will be more effective if submitters of
+SSU/LSU rRNA sequences can also use ribosensor in a manner that is
+consistent with the expected usage within NCBI. Therefore, the
+instructions below are general enough that ribosensor should be usable
+outside NCBI.
 
 
 ##############################################################################
 SETTING UP ENVIRONMENT VARIABLES
 
-Before running ribosensor.pl you will need to update some of your
-environment variables. To do this, add the following seven lines to
-either the file .bashrc (if you use bash shell) or the file .cshrc
-file (if you use C shell or tcsh). The .bashrc or .cshrc file will be
-in your home directory. To determine what shell you use, enter the
-command 'echo $SHELL' If this command returns '/bin/bash', then update
-the file .bashrc.  If this command returns '/bin/csh' or '/bin/tcsh',
-then update your .cshrc file.
+Before running ribosensor, the user must update environment
+variables. To do this, add the following seven lines to either the
+file .bashrc (for users of bash shell) or the file .cshrc file (for
+users of C shell or tcsh). The .bashrc or .cshrc file is in the user's
+home directory. To determine what shell is in use, enter the command
+
+> echo $SHELL
+
+If this command returns '/bin/bash', then update the file .bashrc.  If
+this command returns '/bin/csh' or '/bin/tcsh', then update the file
+.cshrc.
 
 Before updating the pertinent shell file, it is necessary to know
 whether the environment variable PERL5LIB is already defined or
-not. To determine this information, enter the command echo $PERL5LIB
+not. To determine this information, enter the command:
+
+> echo $PERL5LIB
+
 If this command returns one or more directories, then PERL5LIB is
 already defined.
 
-The seven lines to add to the file .bashrc, if PERL5LIB is already defined:
+Similarly, it is necessary to know whether the environment variable
+BLASTDB is already defined. To determine this information, enter the
+command:
+
+> echo $BLASTDB
+
+If this command returns one or more directories, then BLASTDB is
+already defined.
+
+The seven lines to add to the file .bashrc, if PERL5LIB and BLASTDB are
+already defined:
 -----------
 export RIBOSENSORDIR="/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 export EPNOPTDIR="/panfs/pan1/dnaorg/ssudetection/code/epn-options"
@@ -61,7 +88,8 @@ export PATH="$RIBOSENSORDIR:$SENSORDIR:$PATH"
 export BLASTDB="$SENSORDIR:$BLASTDB"
 -----------
 
-The seven lines to add to the file .cshrc, if PERL5LIB is already defined:
+The seven lines to add to the file .cshrc, if PERL5LIB and BLASTDB are
+already defined:
 -----------
 setenv RIBOSENSORDIR "/panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper"
 setenv RIBODIR "/panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1"
@@ -72,13 +100,7 @@ setenv PATH "$RIBOSENSORDIR":"$SENSORDIR":"$PATH"
 setenv BLASTDB "$SENSORDIR":"$BLASTDB"
 -----------
 
-After adding the appropriate seven lines to the appropriate shell file, execute this command:
-source ~/.bashrc
-OR
-source ~/.cshrc
-
-If PERL5LIB was not already defined (you'll know if you get an error
-message when you run the above 'source' command): 
+If PERL5LIB was not already defined: 
 use instead
 export PERL5LIB="$RIBODIR:$EPNOPTDIR"
 for .bashrc, OR
@@ -86,8 +108,7 @@ setenv PERL5LIB "$RIBODIR":"$EPNOPTDIR"
 for .cshrc.
 at line 5 out of 7. 
 
-If BLASTDB was not already defined (you'll know if you get an error
-message when you run the above 'source' command): 
+If BLASTDB was not already defined: 
 use instead
 export BLASTDB="$SENSORDIR"
 for .bashrc, OR
@@ -95,49 +116,55 @@ setenv BLASTDB "$SENSORDIR"
 for .cshrc.
 at line 7 out of 7. 
 
-To check that your environment variables have been properly adjusted, try the
-following commands:
+After adding the appropriate seven lines to the appropriate shell file, execute this command:
+> source ~/.bashrc
+OR
+> source ~/.cshrc
+
+To check that your environment variables have been properly adjusted,
+try the following commands:
+
 Command 1. 
-'echo $RIBOSENSORDIR'
+> echo $RIBOSENSORDIR
 This should return only
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
 
 Command 2. 
-'echo $RIBODIR'
+> echo $RIBODIR
 This should return only
 /panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1
 
 Command 3. 
-'echo $SENSORDIR'
+> echo $SENSORDIR
 This should return only
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
-Command 3. 
-'echo $EPNOPTDIR'
+Command 4. 
+> echo $EPNOPTDIR
 This should return only
 /panfs/pan1/dnaorg/ssudetection/code/epn-options
 
-Command 4. 
-'echo $PERL5LIB'
+Command 5. 
+> echo $PERL5LIB
 This should return a (potentially longer) string that begins with 
 /panfs/pan1/dnaorg/ssudetection/code/ribotyper-v1:/panfs/pan1/dnaorg/ssudetection/code/epn-options
 
-Command 5.
-'echo $PATH'
+Command 6.
+> echo $PATH
 This should return a (potentially longer) string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper
 AND
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
-Command 6.
-'echo $BLASTDB'
+Command 7.
+> echo $BLASTDB
 This should return a (potentially longer) string that includes:
 /panfs/pan1/dnaorg/ssudetection/code/16S_sensor
 
 If any of these commands do not return what they are supposed to,
 please email Eric Nawrocki (nawrocke@ncbi.nlm.nih.gov). If you do see
-the expected output, and you have the prequisite programs installed as
-explained below, the sample run below should work.
+the expected output, and you have the prerequisite programs installed
+as explained below, the sample run below should work.
 
 ##############################################################################
 PREREQUISITE PROGRAMS
@@ -148,34 +175,47 @@ Further, the easel 'miniapps' that are installed with Infernal must be
 in your $PATH. You can download Infernal from
 http://eddylab.org/infernal/.
 
-Additionally, the 'blastn' program from BLAST version 2.6.0+ must be
-installed and in your $PATH.
+Additionally, the 'blastn' program from the BLAST suite must be
+installed and in your $PATH. Our testing was done with BLAST version
+2.6.0+.
 
 *****************************************
 Internal NCBI-specific instructions:
+
 The v1.1.2 Infernal executables and the easel miniapps are already
-installed system wide at NCBI. You'll need to login into a node that
-runs CentOS 7. Add 'infernal' to the facilities line of your
-.ncbi_hints file. And add the following line to your .ncbi_hints file:
+installed system-wide at NCBI. Login into a Linux computer that
+runs CentOS 7.
+Add the single token
+infernal
+to the facilities line of your .ncbi_hints file.
+Also add the following line to your .ncbi_hints file, near the bottom:
 option infernal_version 1.1.2
 *****************************************
 
 To check if you have Infernal, BLAST and the required executables
-installed and in your path. Execute the following two commands:
+installed and in your path. Execute the following three commands:
 
-$ cmsearch -h 
-$ esl-sfetch -h
-$ blastn -h
+> cmsearch -h 
+> esl-sfetch -h
+> blastn -h
 
-The first command should return the usage for cmsearch with a line
-that says: INFERNAL 1.1.2 (July 2016).
+As of July 2017, the first command should return the usage for cmsearch with a line
+that says:
+INFERNAL 1.1.2 (July 2016).
+
 The second command should return the usage for esl-sfetch with a
-line that says: Easel 0.43 (July 2016).
-The third command should return blastn usage with a line at the end
-that says BLAST 2.6.0+.
+line that says:
+Easel 0.43 (July 2016).
 
-If this is true, and you were able to set your environment variables
-as explained above, the sample run below should work.
+The third command should return blastn usage with a line at the end
+that says
+BLAST 2.6.0+.
+
+It is possible that versions of any of these three programs would
+advance past three version numbers shown above. If all three
+prerequisite programs are present, and you were able to set your
+environment variables as explained above, the sample run below should
+work.
 
 ##############################################################################
 WHAT RIBOSENSOR DOES
@@ -183,15 +223,19 @@ WHAT RIBOSENSOR DOES
 Ribosensor is a wrapper program that calls two other programs:
 ribotyper and 16S_sensor (henceforth called 'sensor') and combines
 their output together. Ribotyper uses profile HMMs to identify and
-classify small subunit (SSU) ribosomal rRNA sequences (archaeal,
-bacterial, eukaryotic) and large subunit ribosomal rRNA
+classify small subunit (SSU) ribosomal RNA sequences (archaeal,
+bacterial, eukaryotic) and large subunit (LSU) ribosomal RNA
 sequences. Sensor uses BLASTN to identify bacterial and archaeal 16S
 SSU rRNA sequences using a library of type strain archaeal and
-bacterial 16S sequences.  Based on the output of both programs,
-ribosensor decides if each input sequence "passes" or "fails". The
-intent is that sequences that pass should be accepted for submission
-to GenBank as archaeal or bacterial 16S SSU rRNA sequences, and
-sequences that fail should not.
+bacterial 16S sequences. Sensor is limited to 16S sequences because
+that is the only category for which NCBI currently has a sufficiently
+large and representative database that is of high enough quality to be
+trustworthy. Based on the output of both programs, ribosensor decides
+if each input sequence "passes" or "fails". When ribosensor is used to
+evaluate candidate submissions to GenBank, the intent is that
+sequences that pass should be accepted for submission to GenBank as
+archaeal or bacterial 16S SSU rRNA sequences, and sequences that fail
+should not.
 
 For sequences that fail, reasons for failure are reported in the form
 of sensor, ribotyper, and/or GPIPE errors. These errors and their
@@ -202,7 +246,9 @@ the submitter" who is expected to make repairs before trying to revise
 the GenBank submission. Other errors "fail to an indexer", meaning
 that the GenBank indexer handling the submission is expected to make
 the repairs or to do further in-house evaluation of the sequence
-before returning it to the submitter.
+before returning it to the submitter. Hopefully, the error diagnostics
+are sufficiently informative to aid the submitter and indexer in
+correcting those problems that are correctable.
 
 For more information on ribotyper, see its 00README.txt:
 https://github.com/nawrockie/ribotyper-v1/blob/master/00README.txt
@@ -215,10 +261,10 @@ SAMPLE RUN
 
 This example runs the script on a sample file of 16 sequences. 
 
-You can only run ribotyper on sequence files that are in directories
-to which you have write permission. So the first step is to copy the
-example sequence file into a new directory you have write permission
-to. Move into that directory and copy the example file with this
+One can run ribotyper only on sequence files that are in directories
+to which you have write permission. So, the first step is to copy the
+example sequence file into a new directory to which you have write permission.
+Move into that directory and copy the example file with this
 command: 
 
 > cp $RIBOSENSORDIR/testfiles/example-16.fa ./
@@ -227,7 +273,7 @@ Then execute the following command:
 
 > ribosensor.pl example-16.fa test
 
-The script ribosensor.pl takes two command line arguments:
+The script ribosensor.pl takes two command-line arguments:
 
 The first argument is the sequence file to annotate.
 
@@ -236,7 +282,12 @@ ribotyper should create. Output files will be placed in this output
 directory. If this directory already exists, the program will exit
 with an error message indicating that you need to either (a) remove
 the directory before rerunning, or (b) use the -f option with
-ribotyper.pl, in which case the directory will be overwritten.
+ribosensor.pl, in which case the directory will be overwritten.
+E.g., if the subdirectory 'test' already exists, replace the above
+command with
+
+> ribosensor.pl -f example-16.fa test
+
 
 The $RIBOSENSORDIR environment variable is used here. That is
 a hard-coded path that was set in the 'SETTING UP ENVIRONMENT
@@ -319,13 +370,13 @@ Example output of the script from the above command
 Output files:
 
 Currently, there are two output files. Both are tabular output files
-with one line per sequence with fields separated by whitespace (spaces,
-not tabs). They will both be in the new directory 'test' that was
-created by the example run above.
+with one line per sequence with fields separated by whitespace
+(spaces, not tabs). They will both be in the new directory 'test' that
+was created by the example run above.
 
-The first file type is a 'human readable error-based' output file,
-and includes the errors reported from both ribotyper and sensor.
-An example is below.
+The first file type is a 'human readable error-based' output file, and
+includes the errors reported from both ribotyper and sensor.  An
+example is below.
 
 Human readable file:
 $ cat testfiles/test.ribosensor.out 
@@ -353,7 +404,7 @@ $ cat testfiles/test.ribosensor.out
 #
 # Column 1 [idx]:      index of sequence in input sequence file
 # Column 2 [target]:   name of target sequence
-# Column 3 [taxonomy]: inferred taxonomy of sequence
+# Column 3 [taxonomy]: inferred taxonomy and LSU/SSU type of sequence
 # Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit
 # Column 5 [type]:     "R<1>S<2>" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor
 # Column 6 [failsto]:  'pass' if sequence passes
@@ -363,13 +414,23 @@ $ cat testfiles/test.ribosensor.out
 # Column 7 [error(s)]: reason(s) for failure (see 00README.txt)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+In the example, the sequence names in column 2 also have taxonomy
+information as Genus_species, but this is information is neither used
+nor expected by ribosensor. In particular, if the reported inferred
+category in column 3 is not consistent with the Genus_species in
+column 2, this inconsistency is not detected by ribosensor. One
+particularly important taxonomy issue is whether a sequence comes from
+Homo sapiens, because human samples need informed consent. Detecting
+whether a sequence comes from Homo sapiens is outside the scope of
+ribosensor because gpipe already has another tool for this purpose.
+
 The second file type is a 'GPIPE error-based' output file. It includes
 much of the same information as the human readable file, with the main
 difference being that the ribotyper and sensor errors have been
-replaced with their corresponding 'GPIPE' errors.
-An example is below.
+replaced with their corresponding 'GPIPE' errors.  An example is
+below.
 
-GPIPE output file
+GPIPE output file:
 $ cat testfiles/test.ribosensor.gpipe
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #idx  sequence                                       taxonomy               strand              p/f  error(s)
@@ -395,7 +456,7 @@ $ cat testfiles/test.ribosensor.gpipe
 #
 # Column 1 [idx]:      index of sequence in input sequence file
 # Column 2 [target]:   name of target sequence
-# Column 3 [taxonomy]: inferred taxonomy of sequence
+# Column 3 [taxonomy]: inferred taxonomy and SSU?LSU type of sequence
 # Column 4 [strnd]:    strand ('plus' or 'minus') of best-scoring hit
 # Column 5 [type]:     "R<1>S<2>" <1> is 'P' if passes ribotyper, 'F' if fails; <2> is same, but for sensor
 # Column 6 [error(s)]: reason(s) for failure (see 00README.txt)
@@ -440,10 +501,12 @@ R9.  R_LowCoverage       SEQ_HOM_LowCoverage             N/A         no         
 R10. R_MultipleHits      SEQ_HOM_MultipleHits            N/A        yes          no  more than 1 hit reported
 ---------
 
-The following list of GPIPE errors (listed in Ribosensor 'GPIPE output file') is relevant in the expected gpipe
-usage. One possible difference is that each sequence may be assigned one or more errrors, but gpipe determines
-whether an entire submission (typically comprising multiple sequences) succeeds or fails. At present, a submission
-fails if any of the sequences in the submission fails.
+The following list of GPIPE errors (listed in Ribosensor 'GPIPE output
+file') is relevant in the expected gpipe usage. One possible
+difference is that each sequence may be assigned one or more errrors,
+but gpipe determines whether an entire submission (typically
+comprising multiple sequences) succeeds or fails. At present, a
+submission fails if any of the sequences in the submission fails.
 
 ---------
 idx  GPIPE error                     fails to      triggering Sensor/Ribotyper errors
@@ -484,7 +547,7 @@ README file:
 https://github.com/aaschaffer/16S_sensor/blob/master/README
 
 
-A few important points about the lists of errors above:
+A few important points for users within NCBI about the lists of errors above:
 
 - A GPIPE error is triggered by one or more occurrences of its
   triggering Sensor/Ribotyper errors (with the exception listed above
@@ -501,7 +564,7 @@ A few important points about the lists of errors above:
   output.  
   
   B) reporting GPIPE errors in the format that Alex Kotliarov asked for
-  at the May 15 Foosh meeting.
+  at the May 15, 2017 gpipe/Foosh meeting.
 
 ##############################################################################
 ALL COMMAND LINE OPTIONS
