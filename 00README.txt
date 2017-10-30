@@ -1,6 +1,6 @@
-EPN, Fri Oct 27 12:59:34 2017
+EPN, Mon Oct 30 11:27:12 2017
 
-Ribosensor v0.21 00README.txt
+Ribosensor v0.22 00README.txt
 
 Organization of this file:
 
@@ -299,17 +299,18 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.21 (Oct 2017)
+# ribosensor 0.22 (Oct 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Oct 26 11:03:34 2017
+# date:    Mon Oct 30 11:27:46 2017
 #
-# target sequence input file:  example-16.fa
-# output directory name:       test
+# target sequence input file:   example-16.fa
+# output directory name:        test
+# forcing directory overwrite:  yes [-f]
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [4.1 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.4 seconds]
-# Running 16S_sensor on seqs of length 601..inf         ... done. [1.0 seconds]
+# Running ribotyper on full sequence file               ... done. [3.4 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [1.3 seconds]
+# Running 16S_sensor on seqs of length 601..inf         ... done. [0.9 seconds]
 # Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
@@ -355,9 +356,9 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      3.9      5122.8      5122.8  00:00:04.15  (hh:mm:ss)
-  sensor           16     11.3     14978.3     14978.3  00:00:01.42  (hh:mm:ss)
-  total            16      2.8      3716.4      3716.4  00:00:05.72  (hh:mm:ss)
+  ribotyper        16      4.8      6334.2      6334.2  00:00:03.36  (hh:mm:ss)
+  sensor           16      7.5      9966.3      9966.3  00:00:02.13  (hh:mm:ss)
+  total            16      2.8      3773.6      3773.6  00:00:05.63  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
