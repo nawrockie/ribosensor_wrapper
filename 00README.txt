@@ -1,6 +1,6 @@
-EPN, Mon Oct 30 11:27:12 2017
+EPN, Mon Oct 30 16:01:15 2017
 
-Ribosensor v0.22 00README.txt
+Ribosensor v0.23 00README.txt
 
 Organization of this file:
 
@@ -299,9 +299,9 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.22 (Oct 2017)
+# ribosensor 0.23 (Oct 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Mon Oct 30 11:27:46 2017
+# date:    Mon Oct 30 16:02:11 2017
 #
 # target sequence input file:   example-16.fa
 # output directory name:        test
@@ -575,9 +575,9 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.20 (July 2017)
+# ribosensor 0.23 (Oct 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Thu Jul  6 11:39:29 2017
+# date:    Mon Oct 30 16:02:38 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
