@@ -1824,7 +1824,7 @@ sub update_error_count_hash {
 # Subroutine: output_timing_statistics()
 # Incept:     EPN, Mon May 15 15:33:17 2017
 #
-# Purpose:    Output timing statistics in unites of seconds. 
+# Purpose:    Output timing statistics in units of seconds. 
 #
 # Arguments:
 #   $FH:              output file handle
