@@ -4,10 +4,13 @@ use warnings;
 use Getopt::Long;
 use Time::HiRes qw(gettimeofday);
 
+# ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
+# Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>\n";
+
 require "epn-options.pm";
 require "ribo.pm";
 
-my $ribodir = $ENV{'RIBODIR'};
+my $ribodir = $ENV{'RIBODIR'};  # directory in which ribotyper is expected to be found
 if(! exists($ENV{'RIBODIR'})) { 
   printf STDERR ("\nERROR, the environment variable RIBODIR is not set, please set it to the directory where you installed the ribotyper scripts and their dependencies.\n"); 
   exit(1); 
@@ -16,7 +19,7 @@ if(! (-d $ribodir)) {
   printf STDERR ("\nERROR, the ribotyper directory specified by your environment variable RIBODIR does not exist.\n"); 
   exit(1); 
 }    
-my $sensordir = $ENV{'SENSORDIR'};
+my $sensordir = $ENV{'SENSORDIR'}; # directory in which 16_sensor a.k.a. sensor is expected to be found
 if(! exists($ENV{'SENSORDIR'})) { 
   printf STDERR ("\nERROR, the environment variable SENSORDIR is not set, please set it to the directory where you installed 16S_sensor.\n"); 
   exit(1); 
@@ -57,28 +60,30 @@ my @opt_order_A = ();
 my %opt_group_desc_H = ();
 
 # Add all options to %opt_HH and @opt_order_A.
+# Group 2 optional arguments are passed directly to sensor and are irrelevant to ribotyper
+# Group 1 and group 3 optional arguments are not specific to sensor or ribotyper
 # This section needs to be kept in sync (manually) with the &GetOptions call below
 $opt_group_desc_H{"1"} = "basic options";
 #     option            type       default               group   requires incompat    preamble-output                                    help-output    
-opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                             "display this help",                                       \%opt_HH, \@opt_order_A);
-opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                     "force; if <output directory> exists, overwrite it",       \%opt_HH, \@opt_order_A);
-opt_Add("-c",           "boolean", 0,                        1,    undef, undef,      "assert sequences are from cultured organisms",    "assert sequences are from cultured organisms",            \%opt_HH, \@opt_order_A);
-opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                    "use <n> CPUs",                                            \%opt_HH, \@opt_order_A);
-opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                      "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
-opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                     "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
-opt_Add("--skipsearch", "boolean", 0,                        1,    undef,  "-f",      "skip search stages, use results from earlier run","skip search stages, use results from earlier run",        \%opt_HH, \@opt_order_A);
+opt_Add("-h",           "boolean", 0,                        0,    undef, undef,      undef,                                               "display this help",                                       \%opt_HH, \@opt_order_A);
+opt_Add("-f",           "boolean", 0,                        1,    undef, undef,      "forcing directory overwrite",                       "force; if <output directory> exists, overwrite it",       \%opt_HH, \@opt_order_A);
+opt_Add("-c",           "boolean", 0,                        1,    undef, undef,      "assert that sequences are from cultured organisms", "assert that sequences are from cultured organisms",            \%opt_HH, \@opt_order_A);
+opt_Add("-n",           "integer", 0,                        1,    undef, undef,      "use <n> CPUs",                                      "use <n> CPUs",                                            \%opt_HH, \@opt_order_A);
+opt_Add("-v",           "boolean", 0,                        1,    undef, undef,      "be verbose",                                        "be verbose; output commands to stdout as they're run",    \%opt_HH, \@opt_order_A);
+opt_Add("--keep",       "boolean", 0,                        1,    undef, undef,      "keep all intermediate files",                       "keep all intermediate files that are removed by default", \%opt_HH, \@opt_order_A);
+opt_Add("--skipsearch", "boolean", 0,                        1,    undef,  "-f",      "skip search stages, use results from earlier run",  "skip search stages, use results from earlier run",        \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"2"} = "16S_sensor related options";
-opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S_sensor minimum seq length to <n>",                    "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S_sensor maximum seq length to <n>",                    "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smaxevalue",    "real", 1e-40,                    2,    undef, undef,      "set 16S_sensor maximum E-value to <x>",                       "set 16S_sensor maximum E-value to <x>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs <= 350 nt to <n>",     "set 16S_sensor minimum percent id for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs [351..600] nt to <n>", "set 16S_sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs > 600 nt to <n>",      "set 16S_sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S_sensor min coverage for all sequences to <n>",        "set 16S_sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov1",   "integer", 80,                       2,    undef, undef,      "set 16S_sensor min coverage for seqs <= 350 nt to <n>",       "set 16S_sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
-opt_Add("--Smincov2",   "integer", 86,                       2,    undef, undef,      "set 16S_sensor min coverage for seqs  > 350 nt to <n>",       "set 16S_sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminlen",    "integer", 100,                      2,    undef, undef,      "set 16S_sensor minimum seq length to <n>",                      "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxlen",    "integer", 2000,                     2,    undef, undef,      "set 16S_sensor maximum seq length to <n>",                      "set 16S_sensor minimum sequence length to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smaxevalue",    "real", 1e-40,                    2,    undef, undef,      "set 16S_sensor maximum E-value to <x>",                         "set 16S_sensor maximum E-value to <x>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid1",    "integer", 75,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs <= 350 nt to <n>",       "set 16S_sensor minimum percent id for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid2",    "integer", 80,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs [351..600] nt to <n>",   "set 16S_sensor minimum percent id for seqs [351..600] nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Sminid3",    "integer", 86,                       2,    undef, undef,      "set 16S_sensor min percent id for seqs > 600 nt to <n>",        "set 16S_sensor minimum percent id for seqs > 600 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincovall", "integer", 10,                       2,    undef, undef,      "set 16S_sensor min percent coverage for all sequences to <n>",  "set 16S_sensor minimum coverage for all sequences to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov1",   "integer", 80,                       2,    undef, undef,      "set 16S_sensor min percent coverage for seqs <= 350 nt to <n>", "set 16S_sensor minimum coverage for seqs <= 350 nt to <n>", \%opt_HH, \@opt_order_A);
+opt_Add("--Smincov2",   "integer", 86,                       2,    undef, undef,      "set 16S_sensor min percent coverage for seqs  > 350 nt to <n>", "set 16S_sensor minimum coverage for seqs  > 350 nt to <n>", \%opt_HH, \@opt_order_A);
 $opt_group_desc_H{"3"} = "options for saving sequence subsets to files";
-opt_Add("--psave",       "boolean",0,                        3,    undef, undef,      "save passing sequences to a file",                            "save passing sequences to a file", \%opt_HH, \@opt_order_A);
+opt_Add("--psave",       "boolean",0,                        3,    undef, undef,      "save passing sequences to a file",                              "save passing sequences to a file", \%opt_HH, \@opt_order_A);
 
 # This section needs to be kept in sync (manually) with the opt_Add() section above
 my %GetOptions_H = ();
@@ -107,8 +112,8 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.24";
-my $releasedate   = "Nov 2017";
+my $version       = "0.25";
+my $releasedate   = "Dec 2017";
 my $package_name  = "ribosensor";
 
 # make *STDOUT file handle 'hot' so it automatically flushes whenever we print to it
@@ -216,8 +221,8 @@ my $sensor_indi_file        = $out_root . ".sensor.out";       # ribosensor-proc
 my $ribo_indi_file          = $out_root . ".ribo.out";         # ribosensor-processed, ribotyper output
 my $combined_out_file       = $out_root . ".out";              # ribosensor-processed, sensor+ribotyper combined output, human readable
 my $combined_gpipe_file     = $out_root . ".gpipe";            # ribosensor-processed, sensor+ribotyper combined output, machine readable with gpipe errors 
-my $passes_sfetch_file      = $out_root . ".pass.sfetch";        # all sequences that passed
-my $passes_seq_file         = $out_root . ".pass.fa";            # all sequences that passed
+my $passes_sfetch_file      = $out_root . ".pass.sfetch";      # input file for esl-sfetch that will fetch all sequences that passed 
+my $passes_seq_file         = $out_root . ".pass.fa";          # all sequences that passed as a FASTA-formatted file 
 
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $unsrt_sensor_indi_file);
@@ -227,8 +232,8 @@ if(! opt_Get("--keep", \%opt_HH)) {
 }
 
 my $unsrt_sensor_indi_FH = undef; # output file handle for unsorted sensor gpipe file
-my $sensor_indi_FH       = undef; # output file handle for sorted sensor gpipe file
-my $ribo_indi_FH         = undef; # output file handle for sorted ribotyper gpipe file
+my $sensor_indi_FH       = undef; # output file handle for gpipe file sorted by input sequence index
+my $ribo_indi_FH         = undef; # output file handle for ribotyper gpipe file sorted by input sequence index
 my $combined_out_FH      = undef; # output file handle for the combined output file
 my $combined_gpipe_FH    = undef; # output file handle for the combined gpipe file
 open($unsrt_sensor_indi_FH, ">", $unsrt_sensor_indi_file) || die "ERROR unable to open $unsrt_sensor_indi_file for writing";
@@ -240,9 +245,13 @@ open($combined_gpipe_FH,    ">", $combined_gpipe_file)    || die "ERROR unable t
 ###################################################################
 # Step 1: Split up input sequence file into 3 files based on length
 ###################################################################
-# we do this before running ribotyper, even though ribotyper is run
-# on the full file so that we'll exit if we have a problem in the
-# sequence file
+# The primary reason for the split is that sensor uses different thresholds
+# depending on whether the length is [0,350], [351,600}, or [601, infinity]
+# The filter that 16S sequences are expected to be below a certain length
+# is applied within sensor, not here.
+# We do this split by length before running ribotyper, even though ribotyper is run
+# on the full file. A beneficial side effect is that we exit early, if there
+# is a detectable syntactic problem in the sequence file.
 my $progress_w = 53; # the width of the left hand column in our progress output, hard-coded
 my $start_secs;
 my %seqidx_H = (); # key: sequence name, value: index of sequence in original input sequence file (1..$nseq)
@@ -250,21 +259,21 @@ my %seqlen_H = (); # key: sequence name, value: length of sequence
 my %width_H  = (); # hash, key is "model" or "target", value is maximum length of any model/target
 my $tot_nseq = 0;  # total number of sequences in the sequence file
 my $tot_nnt  = 0;  # total number of nucleotides in the full sequence file
-$width_H{"taxonomy"} = length("SSU.Euk-Microsporidia"); # longest possible classification
-$width_H{"strand"}   = length("mixed(S):minus(R)");     # longest possible strand string
-$width_H{"index"}    = length("#idx");     # longest possible strand string
+$width_H{"taxonomy"} = length("SSU.Euk-Microsporidia"); # longest possible classification in number of characters in the column header
+$width_H{"strand"}   = length("mixed(S):minus(R)");     # longest possible strand string in number of characters
+$width_H{"index"}    = length("#idx");                  # longest possible index string in number of characters
 my $ssi_file = $seq_file . ".ssi";
 my $seqstat_file = $out_root . ".seqstat";
 my $i;
 
 my $nseq_parts     = 3;               # hard-coded, number of sequence partitions based on length
 my @spart_minlen_A = (0,   351, 601); # hard-coded, minimum length for each sequence partition
-my @spart_maxlen_A = (350, 600, -1);  # hard-coded, maximum length for each sequence partition, -1 == infinity
+my @spart_maxlen_A = (350, 600, -1);  # hard-coded, maximum length for each sequence partition, -1 represents infinity
 my @spart_desc_A   = ("0..350", "351..600", "601..inf");
 
 my $ncov_parts     = 2;               # hard-coded, number of coverage threshold partitions based on length
 my @cpart_minlen_A = (0,   351);      # hard-coded, minimum length for each coverage threshold partition
-my @cpart_maxlen_A = (350, -1);       # hard-coded, maximum length for each coverage threshold partition, -1 == infinity
+my @cpart_maxlen_A = (350, -1);       # hard-coded, maximum length for each coverage threshold partition, -1 represents infinity
 
 my @subseq_file_A   = (); # array of fasta files that we fetch into
 my @subseq_sfetch_A = (); # array of sfetch input files that we created
@@ -287,6 +296,9 @@ else {
   
 $tot_nnt  = ribo_ProcessSequenceFile("esl-seqstat", $seq_file, $seqstat_file, \%seqidx_H, \%seqlen_H, \%width_H, \%opt_HH);
 $tot_nseq = scalar(keys %seqidx_H);
+if(length($tot_nseq) > $width_H{"index"}) { 
+  $width_H{"index"} = length($tot_nseq);
+}
 if(! opt_Get("--keep", \%opt_HH)) { 
   push(@to_remove_A, $seqstat_file);
 }
@@ -297,6 +309,9 @@ for($i = 0; $i < $nseq_parts; $i++) {
   $subseq_sfetch_A[$i] = $out_root . "." . ($i+1) . ".sfetch";
   $subseq_file_A[$i]   = $out_root . "." . ($i+1) . ".fa";
   $subseq_nseq_A[$i]   = fetch_seqs_in_length_range("esl-sfetch", $seq_file, $do_fetch, $spart_minlen_A[$i], $spart_maxlen_A[$i], \%seqlen_H, $subseq_sfetch_A[$i], $subseq_file_A[$i], \%opt_HH);
+
+  # files are marked for removal at this step, but not actually 
+  # removed until the 16S_sensor analysis has been completed
   if(! opt_Get("--keep", \%opt_HH)) { 
     push(@to_remove_A, $subseq_sfetch_A[$i]);
     if($subseq_nseq_A[$i] > 0) { 
@@ -309,7 +324,7 @@ ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 #############################################
 # Step 2: Run ribotyper on full sequence file
 #############################################
-# It's important we run ribotyper only once on full file so that E-values are accurate. 
+# It's important that we run ribotyper only once on the full file so that E-values are accurate. 
 my $ribo_dir_out    = $dir_out . "/ribo-out";
 my $ribo_stdoutfile = $out_root . ".ribotyper.stdout";
 my $keep_opt        = (opt_Get("--keep", \%opt_HH)) ? "--keep" : "";
@@ -427,30 +442,36 @@ my @submitter_A    = ();   # array of human errors that fail to submitter rather
                  "SEQ_HOM_LowCoverage",
                  "SEQ_HOM_MultipleHits");
 
-# hard-coded list of errors that we ignore when triggering GPIPE errors if sequence is RPSF and -c not used
+# hard-coded list of errors that we ignore when triggering GPIPE
+# errors if sequence is RPSF (pass ribotyper, fail sensor) and -c not
+# used
 @RPSF_ignore_A = ("S_NoHits", 
                   "S_LowScore",
                   "S_NoSimilarity",
                   "S_LowSimilarity");
 
-# hard-coded list of errors that we ignore when triggering GPIPE errors if sequence is RFSP
+# hard-coded list of errors that we ignore when triggering GPIPE
+# errors if sequence is RFSP (fail ribotyper, pass sensor)
 @RFSP_ignore_A = ("R_MultipleHits");
 
-# hard-coded list of errors that we ignore (if other errors are also observed) when triggering 
-# GPIPE errors if sequence is RFSF, key is error to ignore, value is array of other errors, if 
-# any of the other errors are present we ignore the key error
+# hard-coded list of errors that we ignore (if other errors are also
+# observed) when triggering GPIPE errors if sequence is RFSF (fail
+# ribotyper, fail sensor), key is error to ignore, value is array of
+# other errors, if any of the other errors are present we ignore the
+# key error
 @{$RFSF_ignore_HA{"S_NoHits"}}        = ("R_UnacceptableModel", "R_QuestionableModel");
 @{$RFSF_ignore_HA{"S_NoSimilarity"}}  = ("R_UnacceptableModel", "R_QuestionableModel");
 @{$RFSF_ignore_HA{"S_LowSimilarity"}} = ("R_UnacceptableModel", "R_QuestionableModel");
 @{$RFSF_ignore_HA{"S_LowScore"}}      = ("R_UnacceptableModel", "R_QuestionableModel");
 
-# hard-coded list of errors that fail to the indexer, all others fail to the submitter
+# hard-coded list of errors that fail to the indexer, all other errors
+# fail to the submitter
 @indexer_A  = ("R_QuestionableModel", 
                "R_LowCoverage", 
                "S_MultipleHits", 
                "R_MultipleHits");
 
-# create the failsto hash
+# create the failsto hash, mapping each error type to indexer or submitter
 define_failsto_hash(\@herror_A, \@indexer_A, \%herror_failsto_H);
   
 # create the map of gpipe errors to human errors
@@ -500,7 +521,7 @@ close($combined_gpipe_FH);
 
 ribo_OutputProgressComplete($start_secs, undef, undef, *STDOUT);
 
-# remove files we don't want anymore, then exit
+# remove files we do not want anymore, then exit
 foreach my $file (@to_remove_A) { 
   unlink $file;
 }
@@ -623,6 +644,7 @@ sub parse_sensor_files {
   my $passfail = undef; # PASS or FAIL for a sequence
   my $failmsg  = undef; # list of errors for the sequence
   my $i;                # a counter
+  my $nexp_tokens = 5;  # number of expected tokens/columns in a sensor 'class' file
 
   # get the coverage thresholds for each coverage threshold partition
   my $ncov_parts  = scalar(@{$minlen_AR});
@@ -644,7 +666,7 @@ sub parse_sensor_files {
         chomp $line;
 
         my @el_A = split(/\t/, $line);
-        if(scalar(@el_A) != 5) { die "ERROR unable to parse sensor output file line: $line"; }
+        if(scalar(@el_A) != $nexp_tokens) { die "ERROR unable to parse sensor output file line: $line"; }
         ($seqid, $class, $strand, $nhits, $cov) = (@el_A);
         $passfail = "PASS";
         $failmsg = "";
@@ -802,7 +824,7 @@ sub output_headers_without_fails_to {
 ################################################################# 
 sub output_headers_with_fails_to { 
   my $nargs_expected = 2;
-  my $sub_name = "output_headers_without_fails_to";
+  my $sub_name = "output_headers_with_fails_to";
   if(scalar(@_) != $nargs_expected) { printf STDERR ("ERROR, $sub_name entered with %d != %d input arguments.\n", scalar(@_), $nargs_expected); exit(1); } 
 
   my ($FH, $width_HR) = (@_);
@@ -930,8 +952,8 @@ sub output_errors_explanation {
 #  print $FH ("#\n");
 #  print $FH ("# This column will include a '-' if none of the error(s) listed below are detected.\n");
 #  print $FH ("# Or it will contain one or more of the following types of messages. There are no\n");
-#  print $FH ("# whitespaces in this field. Errors from 16S_sensor begin with \'sensor\'. Errors\n");
-#  print $FH ("# from ribotyper begin with 'ribotyper'.\n");
+#  print $FH ("# whitespace characters in this field. Errors from 16S_sensor begin with \'sensor\'.\n");
+#  print $FH ("# Errors from ribotyper begin with 'ribotyper'.\n");
 #  print $FH ("#\n");
 
   return;
@@ -976,8 +998,12 @@ sub convert_ribo_short_to_indi_file {
   my $strand            = undef; # strand of a sequence
   my $passfail          = undef; # PASS or FAIL for a sequence
   my $i;                         # a counter
-  my $found_match  = 0;          # used to look for matching ribotyper error in @{$herror_AR}
   my $herror;                    # an element of @{$herror_AR}
+  my %herror_H = ();             # identity hash of herrors, created for @{$herror_AR}
+                                 # to quickly determine if an herror is in @{$herror_AR} or not
+  foreach $herror (@{$herror_AR}) { 
+    $herror_H{$herror} = 1;
+  }
 
   open(IN, $shortfile) || die "ERROR unable to open $shortfile for reading in $sub_name"; 
   while($line = <IN>) { 
@@ -1019,11 +1045,7 @@ sub convert_ribo_short_to_indi_file {
             $ufeature_stripped =~ s/\:.+$//; # remove ':' and everything after (the sequence specific information)
             $ufeature_stripped = "R_" . $ufeature_stripped;
             # determine if this is a ufeature that maps to an error in ribosensor
-            $found_match = 0;
-            foreach $herror (@{$herror_AR}) { 
-              if($herror eq $ufeature_stripped) { $found_match = 1; last; }
-            }
-            if($found_match) { 
+            if(exists $herror_H{$ufeature_stripped}) { 
               $failmsg .= "R_" . $ufeature . ";";
               $passfail = "FAIL";
             }
@@ -1038,7 +1060,8 @@ sub convert_ribo_short_to_indi_file {
         output_gpipe_line_without_fails_to($FH, $idx, $seqid, $class, $strand, $passfail, $failmsg, $width_HR, $opt_HHR);
       } # end of else entered if $ufeature_str ne "-"
     }
- }   
+  }
+  close(IN);
   return;
 }
   
@@ -1128,8 +1151,8 @@ sub output_gpipe_line_without_fails_to {
 # Subroutine : combine_gpipe_files()
 # Incept:      EPN, Mon May 15 09:08:38 2017
 #
-# Purpose:     Combine the information in a gpipe file from 
-#              sensor and ribotyper into a single file.
+# Purpose:     Combine the information in two gpipe files, one
+#              from sensor and one from ribotyper into a single file.
 #
 # Arguments: 
 #   $out_FH:            filehandle to output 'human' readable file to 
@@ -1220,7 +1243,8 @@ sub combine_gpipe_files {
     if($have_sline && $have_rline) { 
       chomp $sline;
       chomp $rline;
-      # example lines
+      # example lines, the hashes at the left are added here to be able to include the 
+      # example lines as comment lines in code
       ##idx  sequence                                       taxonomy  strnd   p/f  error(s)
       ##---  ---------------------------------------------  --------  -----  ----  --------
       #1     00052::Halobacterium_sp.::AE005128                 ?      plus  PASS  -
@@ -1362,9 +1386,11 @@ sub combine_gpipe_files {
 #   $herror_failsto_HR:  ref to hash explaining how each human error fails
 #   $opt_HHR:            ref to 2D hash of cmdline options
 #
-# Returns:     void
+# Returns:     "pass", "submitter", or "indexer"
 #
-# Dies:        never
+# Dies:       In the unexpected situation in which the sequence has at least
+#             one error, but none of the errors can be classified as a
+#             submitter error or an indexer error
 #
 ################################################################# 
 sub determine_fails_to_string { 
@@ -1437,9 +1463,10 @@ sub determine_fails_to_string {
 #   $failmsg:     all gpipe error separated by ";"
 #   $opt_HHR:     ref to 2D hash of cmdline options
 #
-# Returns:     void
+# Returns:     "pass", "indexer", or "submitter" 
 #
-# Dies:        never
+# Dies:        Various conditions in which the pass/fail decision is 
+#              inconsistent with the error string
 #
 ################################################################# 
 sub determine_fails_to_string_May15_meeting { 
@@ -1655,7 +1682,7 @@ sub output_outcome_counts {
 #
 # Returns:  Nothing.
 # 
-# Dies:     Never.
+# Dies:     Some error is unrecognized
 #
 #################################################################
 sub output_error_counts { 
@@ -1767,7 +1794,7 @@ sub initialize_hash_of_hash_of_counts {
 #
 # Returns:  Nothing.
 # 
-# Dies:     Never.
+# Dies:     Some error is unrecognized.
 #
 #################################################################
 sub update_error_count_hash { 
@@ -1797,7 +1824,7 @@ sub update_error_count_hash {
 # Subroutine: output_timing_statistics()
 # Incept:     EPN, Mon May 15 15:33:17 2017
 #
-# Purpose:    Output timing statistics.
+# Purpose:    Output timing statistics in units of seconds. 
 #
 # Arguments:
 #   $FH:              output file handle
@@ -1949,7 +1976,7 @@ sub output_timing_statistics {
 #           Number of sequences reversed complemented as they're fetched
 #           (second value will always be 0 if $do_revcomp is 0)
 #
-# Dies:     Never.
+# Dies:     The argument column has an unexpected value.
 #
 #################################################################
 sub fetch_seqs_given_gpipe_file { 
@@ -2040,9 +2067,11 @@ sub fetch_seqs_given_gpipe_file {
 #                 and we return <s1> if ribotyper failed and ribotyper passed
 #   $type:        'RPSP', 'RPSF', 'RFSP', /RFSF'
 #
-# Returns:  Nothing.
+# Returns:  "minus", "plus", "mixed", or "NA"
 # 
-# Dies:     Never.
+# Dies:  The value of type is not one of the four expected strings
+#        listed above; or the value of strand does not meet the
+#        syntactic specification above.
 #
 #################################################################
 sub determine_strand_given_gpipe_strand { 
@@ -2223,7 +2252,7 @@ sub define_failsto_hash {
 #
 # Returns:  The machine fail message.
 # 
-# Dies:     Never.
+# Dies:     If an error string is not recognized
 #
 #################################################################
 sub human_to_gpipe_fail_message { 

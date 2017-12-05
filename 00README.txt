@@ -1,6 +1,6 @@
-EPN, Wed Nov  1 14:29:34 2017
+EPN, Tue Dec  5 10:35:55 2017
 
-Ribosensor v0.24 00README.txt
+Ribosensor v0.25 00README.txt
 
 Organization of this file:
 
@@ -25,7 +25,7 @@ BLASTN.
 Authors: Eric Nawrocki and Alejandro Schaffer
 National Center for Biotechnology Information 
 
-Current location of code and other relevant files:
+Current location of code and other relevant files within NCBI:
 /panfs/pan1/dnaorg/ssudetection/code/ribosensor_wrapper/
 
 The initial setup of ribosensor is intended for internal NCBI usage in
@@ -185,11 +185,21 @@ Internal NCBI-specific instructions:
 The v1.1.2 Infernal executables and the easel miniapps are already
 installed system-wide at NCBI. Login into a Linux computer that
 runs CentOS 7.
+
 Add the single token
 infernal
 to the facilities line of your .ncbi_hints file.
-Also add the following line to your .ncbi_hints file, near the bottom:
+
+Do not delete any tokens on the line; it does not matter where within
+the facilities token you add the new token infernal.
+
+Also, add the following line to your .ncbi_hints file, near the bottom:
 option infernal_version 1.1.2
+
+Do not delete any option lines that exist, unless they refer to an
+earlier version of infernal. The placement of the new option line
+among all existing option lines is probably unimportant.
+
 *****************************************
 
 To check if you have Infernal, BLAST and the required executables
@@ -221,7 +231,7 @@ work.
 WHAT RIBOSENSOR DOES
 
 Ribosensor is a wrapper program that calls two other programs:
-ribotyper and 16S_sensor (henceforth called 'sensor') and combines
+ribotyper and 16S_sensor (henceforth, called 'sensor') and combines
 their output together. Ribotyper uses profile HMMs to identify and
 classify small subunit (SSU) ribosomal RNA sequences (archaeal,
 bacterial, eukaryotic) and large subunit (LSU) ribosomal RNA
@@ -238,7 +248,7 @@ archaeal or bacterial 16S SSU rRNA sequences, and sequences that fail
 should not.
 
 For sequences that fail, reasons for failure are reported in the form
-of sensor, ribotyper, and/or GPIPE errors. These errors and their
+of sensor, ribotyper, and/or gpipe errors. These errors and their
 relationship are described in the section EXPLANATION OF ERRORS,
 below. The present structure of handling submissions in gpipe encodes
 the principle that some errors are more serious and basic and "fail to
@@ -288,7 +298,6 @@ command with
 
 > ribosensor.pl -f example-16.fa test
 
-
 The $RIBOSENSORDIR environment variable is used here. That is
 a hard-coded path that was set in the 'SETTING UP ENVIRONMENT
 VARIABLES:' section above. 
@@ -299,18 +308,19 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.24 (Nov 2017)
+# ribosensor 0.25 (Dec 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Wed Nov  1 14:30:55 2017
+# date:    Tue Dec  5 10:41:02 2017
 #
-# target sequence input file:  example-16.fa
-# output directory name:       test
+# target sequence input file:   example-16.fa
+# output directory name:        test
+# forcing directory overwrite:  yes [-f]
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.5 seconds]
+# Running ribotyper on full sequence file               ... done. [3.6 seconds]
 # Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
 # Running 16S_sensor on seqs of length 601..inf         ... done. [0.9 seconds]
-# Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
+# Parsing and combining 16S_sensor and ribotyper output ... done. [0.2 seconds]
 #
 # Outcome counts:
 #
@@ -355,9 +365,9 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.6      6057.4      6057.4  00:00:03.51  (hh:mm:ss)
-  sensor           16     14.4     19073.2     19073.2  00:00:01.11  (hh:mm:ss)
-  total            16      3.4      4485.6      4485.6  00:00:04.74  (hh:mm:ss)
+  ribotyper        16      4.4      5893.6      5893.6  00:00:03.61  (hh:mm:ss)
+  sensor           16     15.3     20383.0     20383.0  00:00:01.04  (hh:mm:ss)
+  total            16      3.3      4330.4      4330.4  00:00:04.91  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -415,7 +425,7 @@ $ cat testfiles/test.ribosensor.out
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the example, the sequence names in column 2 also have taxonomy
-information as Genus_species, but this is information is neither used
+information as Genus_species, but this information is neither used
 nor expected by ribosensor. In particular, if the reported inferred
 category in column 3 is not consistent with the Genus_species in
 column 2, this inconsistency is not detected by ribosensor. One
@@ -541,9 +551,9 @@ with 'R_' in column 7 of the human readable output file, see
 ribotyper's 00README.txt:
 https://github.com/nawrockie/ribotyper-v1/blob/master/00README.txt
 
-For more information on sensor errors which are reported prefixed with
-'S_' in column 7 of the human readable output file, see sensor's
-README file:
+For more information on sensor errors, all of which are reported
+prefixed with 'S_' in column 7 of the human readable output file, see
+sensor's README file:
 https://github.com/aaschaffer/16S_sensor/blob/master/README
 
 
@@ -553,10 +563,10 @@ A few important points for users within NCBI about the lists of errors above:
   triggering Sensor/Ribotyper errors (with the exception listed above
   for '*', '+', and '^').
 
-- This definition of Sensor/Ribotyper errors and the GPIPE errors they
-  trigger is slightly different from the most recent Confluence
-  'Analysis3-20170515' word document. Eric made changes where he thought
-  it made sense with the following goals in mind:
+- The definition above of Sensor/Ribotyper errors and the GPIPE errors
+  they trigger is slightly different from the most recent Confluence
+  'Analysis3-20170515' word document. Eric made changes where he
+  thought it made sense with the following goals in mind:
 
   A) simplifying the 'Outcomes' section of the Analysis document,
   which explained how to determine whether sequences pass or fail to
@@ -574,16 +584,16 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.24 (Nov 2017)
+# ribosensor 0.25 (Dec 2017)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Wed Nov  1 14:31:46 2017
+# date:    Tue Dec  5 10:42:11 2017
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
 
 basic options:
   -f           : force; if <output directory> exists, overwrite it
-  -c           : assert sequences are from cultured organisms
+  -c           : assert that sequences are from cultured organisms
   -n <n>       : use <n> CPUs [0]
   -v           : be verbose; output commands to stdout as they're run
   --keep       : keep all intermediate files that are removed by default
