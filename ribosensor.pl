@@ -112,8 +112,8 @@ my $options_okay =
 my $total_seconds = -1 * ribo_SecondsSinceEpoch(); # by multiplying by -1, we can just add another ribo_SecondsSinceEpoch call at end to get total time
 my $executable    = $0;
 my $date          = scalar localtime();
-my $version       = "0.24";
-my $releasedate   = "Nov 2017";
+my $version       = "0.25";
+my $releasedate   = "Dec 2017";
 my $package_name  = "ribosensor";
 
 # make *STDOUT file handle 'hot' so it automatically flushes whenever we print to it
@@ -1045,7 +1045,7 @@ sub convert_ribo_short_to_indi_file {
             $ufeature_stripped =~ s/\:.+$//; # remove ':' and everything after (the sequence specific information)
             $ufeature_stripped = "R_" . $ufeature_stripped;
             # determine if this is a ufeature that maps to an error in ribosensor
-            if(exists $herror_H{$herror}) { 
+            if(exists $herror_H{$ufeature_stripped}) { 
               $failmsg .= "R_" . $ufeature . ";";
               $passfail = "FAIL";
             }
