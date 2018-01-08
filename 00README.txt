@@ -1,6 +1,6 @@
-EPN, Tue Dec  5 10:35:55 2017
+EPN, Mon Jan  8 12:51:54 2018
 
-Ribosensor v0.25 00README.txt
+Ribosensor v0.26 00README.txt
 
 Organization of this file:
 
@@ -308,19 +308,18 @@ OUTPUT
 Example output of the script from the above command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.25 (Dec 2017)
+# ribosensor 0.26 (Jan 2018)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Tue Dec  5 10:41:02 2017
+# date:    Mon Jan  8 12:55:42 2018
 #
-# target sequence input file:   example-16.fa
-# output directory name:        test
-# forcing directory overwrite:  yes [-f]
+# target sequence input file:  example-16.fa
+# output directory name:       test
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Partitioning sequence file based on sequence lengths  ... done. [0.1 seconds]
-# Running ribotyper on full sequence file               ... done. [3.6 seconds]
-# Running 16S_sensor on seqs of length 351..600         ... done. [0.2 seconds]
+# Running ribotyper on full sequence file               ... done. [3.4 seconds]
+# Running 16S_sensor on seqs of length 351..600         ... done. [1.2 seconds]
 # Running 16S_sensor on seqs of length 601..inf         ... done. [0.9 seconds]
-# Parsing and combining 16S_sensor and ribotyper output ... done. [0.2 seconds]
+# Parsing and combining 16S_sensor and ribotyper output ... done. [0.0 seconds]
 #
 # Outcome counts:
 #
@@ -365,9 +364,9 @@ Example output of the script from the above command
 #
 # stage      num seqs  seq/sec      nt/sec  nt/sec/cpu  total time             
 # ---------  --------  -------  ----------  ----------  -----------------------
-  ribotyper        16      4.4      5893.6      5893.6  00:00:03.61  (hh:mm:ss)
-  sensor           16     15.3     20383.0     20383.0  00:00:01.04  (hh:mm:ss)
-  total            16      3.3      4330.4      4330.4  00:00:04.91  (hh:mm:ss)
+  ribotyper        16      4.7      6258.5      6258.5  00:00:03.40  (hh:mm:ss)
+  sensor           16      7.6     10114.4     10114.4  00:00:02.10  (hh:mm:ss)
+  total            16      2.8      3767.9      3767.9  00:00:05.64  (hh:mm:ss)
 #
 #
 # Human readable error-based output saved to file test/test.ribosensor.out
@@ -584,9 +583,9 @@ it with the -h option:
 
 > ribosensor.pl -h
 # ribosensor.pl :: analyze ribosomal RNA sequences with profile HMMs and BLASTN
-# ribosensor 0.25 (Dec 2017)
+# ribosensor 0.26 (Jan 2018)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# date:    Tue Dec  5 10:42:11 2017
+# date:    Mon Jan  8 12:57:13 2018
 #
 Usage: ribosensor.pl [-options] <fasta file to annotate> <output directory>
 
